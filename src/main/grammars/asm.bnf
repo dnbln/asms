@@ -1,0 +1,87 @@
+{
+  parserClass="dev.dnbln.asms.lang.parser.AsmParser"
+
+  extends="com.intellij.extapi.psi.ASTWrapperPsiElement"
+
+  psiClassPrefix="Asm"
+  psiImplClassSuffix="Impl"
+  psiPackage="dev.dnbln.asms.lang.psi"
+  psiImplPackage="dev.dnbln.asms.lang.psi.impl"
+
+  elementTypeHolderClass="dev.dnbln.asms.lang.psi.AsmElementTypes"
+  elementTypeClass="dev.dnbln.asms.lang.psi.AsmElementType"
+  tokenTypeClass="dev.dnbln.asms.lang.AsmTokenType"
+
+  tokens = [
+    "COMMENT"
+    "NEWLINE"
+  ]
+  generateTokenAccessors=true
+}
+
+file ::= item*
+
+item ::= NEWLINE | label | directive | instruction
+
+private meta comma ::= <<param>> (COMMA <<param>>)*
+private meta plus_minus_chain_s ::= (PLUS | MINUS)? <<param>> ((PLUS | MINUS) <<param>>)*
+
+possibly_dot_id ::= DOT? ID
+
+label ::= possibly_dot_id COLON NEWLINE
+instruction ::= instruction_name instruction_arg_list NEWLINE
+
+instruction_name ::= ID
+instruction_arg_list ::= <<comma instruction_arg>> | ()
+
+instruction_arg ::= imm | mem | reg
+
+imm ::= DOLLAR_SIGN imm_value
+imm_value ::= number_literal | char_lit | mem_offset
+number_literal ::= MINUS? num
+num ::= (hex_lit | dec_lit | oct_lit)
+hex_lit ::= HEX_LITERAL
+dec_lit ::= DEC_LITERAL
+oct_lit ::= OCT_LITERAL
+char_lit ::= CHAR_LITERAL
+
+// ================================
+// ===       Memory             ===
+// ================================
+mem ::= mem_segment_override? mem_offset mem_base_index_scale |
+        mem_segment_override? mem_offset |
+        mem_segment_override? mem_base_index_scale
+mem_segment_override ::= mem_segment_reg COLON
+mem_segment_reg ::= reg
+mem_offset ::= <<plus_minus_chain_s mem_offset_element>>
+mem_offset_element ::= label_ref | num
+
+mem_base_index_scale ::=
+    OPEN_PAREN mem_base COMMA mem_index COMMA mem_scale CLOSE_PAREN |
+    OPEN_PAREN mem_base COMMA mem_index CLOSE_PAREN |
+    OPEN_PAREN COMMA mem_index COMMA mem_scale CLOSE_PAREN |
+    OPEN_PAREN mem_base CLOSE_PAREN
+mem_base ::= reg
+mem_index ::= reg
+mem_scale ::= num
+
+// ===============================
+// ===      Registers          ===
+// ===============================
+reg ::= PERCENT ID
+
+// ===============================
+// ===       Label             ===
+// ===============================
+label_ref ::= possibly_dot_id
+
+// ===============================
+// ===       Directives        ===
+// ===============================
+
+directive ::= directive_code NEWLINE
+
+directive_code ::= directive_head directive_args?
+directive_head ::= DOT DEC_LITERAL? ID // the DEC_LITERAL is there for the .2byte, .4byte and .8byte directives
+directive_args ::= <<comma directive_arg>>
+directive_arg ::= ID | num | STRING_LITERAL
