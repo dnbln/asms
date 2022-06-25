@@ -37,6 +37,14 @@
 
         <annotator language="Assembly" implementationClass="dev.dnbln.asms.lang.AsmHighlightingAnnotator"/>
 
+        <!--
+        Doesn't work properly
+        TODO: Look into why
+
+        <lang.findUsagesProvider language="Assembly" implementationClass="dev.dnbln.asms.lang.psi.AsmFindUsagesProvider"/>
+        -->
+
+
         <!-- Inspections -->
         <localInspection language="Assembly" implementationClass="dev.dnbln.asms.lang.inspections.AsmUnknownDirectives"
                          displayName="Unknown directives" groupName="Assembly" enabledByDefault="true" level="ERROR"/>

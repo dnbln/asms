@@ -28,7 +28,10 @@ private meta plus_minus_chain_s ::= (PLUS | MINUS)? <<param>> ((PLUS | MINUS) <<
 
 possibly_dot_id ::= DOT? ID
 
-label ::= possibly_dot_id COLON NEWLINE
+label ::= possibly_dot_id COLON NEWLINE {
+    implements = "dev.dnbln.asms.lang.psi.AsmNamedElement"
+    mixin = "dev.dnbln.asms.lang.psi.AsmLabelMixin"
+}
 instruction ::= instruction_name instruction_arg_list NEWLINE
 
 instruction_name ::= ID
@@ -73,7 +76,10 @@ reg ::= PERCENT ID
 // ===============================
 // ===       Label             ===
 // ===============================
-label_ref ::= possibly_dot_id
+label_ref ::= possibly_dot_id {
+    implements = "dev.dnbln.asms.lang.psi.AsmNamedElement"
+    mixin = "dev.dnbln.asms.lang.psi.AsmLabelRefMixin"
+}
 
 // ===============================
 // ===       Directives        ===
