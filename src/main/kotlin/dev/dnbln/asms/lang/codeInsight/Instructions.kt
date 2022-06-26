@@ -80,7 +80,7 @@ data class InstructionVariants(val list: Array<out InstructionVariant>) {
 
 fun variants(vararg list: InstructionVariant): InstructionVariants = InstructionVariants(list)
 
-data class Instruction(val mnemonic: String, val variants: InstructionVariants? = null)
+data class Instruction(val mnemonic: String, val variants: InstructionVariants? = null, val memSafeAlways: Boolean = false)
 
 
 val ARITHMETIC_INSTRUCTION_VARIANTS = variants(
@@ -249,7 +249,8 @@ val LEA = Instruction(
             Mem, Reg(Reg64),
             suffix = Suffix("q")
         ),
-    )
+    ),
+    memSafeAlways = true
 )
 
 val MOV = Instruction(
