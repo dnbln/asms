@@ -3,11 +3,11 @@
     <!-- Unique identifier of the plugin. It should be FQN. It cannot be changed between the plugin versions. -->
     <id>dev.dnbln.asms</id>
 
-    <!-- Public plugin name should be written in Title Case.
+    <!-- Public plugin mneumonic should be written in Title Case.
          Guidelines: https://plugins.jetbrains.com/docs/marketplace/plugin-overview-page.html#plugin-name -->
     <name>Asms</name>
 
-    <!-- A displayed Vendor name or Organization ID displayed on the Plugins Page. -->
+    <!-- A displayed Vendor mneumonic or Organization ID displayed on the Plugins Page. -->
     <vendor email="dinu@dnbln.dev" url="https://dnbln.dev">Dinu Blanovschi</vendor>
 
     <!-- Description of the plugin displayed on the Plugin Page and IDE Plugin Manager.
@@ -48,5 +48,9 @@
         <!-- Inspections -->
         <localInspection language="Assembly" implementationClass="dev.dnbln.asms.lang.inspections.AsmUnknownDirectives"
                          displayName="Unknown directives" groupName="Assembly" enabledByDefault="true" level="ERROR"/>
+        <localInspection language="Assembly" implementationClass="dev.dnbln.asms.lang.inspections.AsmUnknownRegisters"
+                         displayName="Unknown registers" groupName="Assembly" enabledByDefault="true" level="ERROR"/>
+        <localInspection language="Assembly" implementationClass="dev.dnbln.asms.lang.inspections.AsmUnknownInstruction"
+                         displayName="Unknown instructions" groupName="Assembly" enabledByDefault="true" level="ERROR"/>
     </extensions>
 </idea-plugin>
