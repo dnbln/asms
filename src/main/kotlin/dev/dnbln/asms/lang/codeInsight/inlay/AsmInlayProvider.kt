@@ -179,6 +179,26 @@ class AsmInlayProvider : InlayHintsProvider<AsmInlayProvider.Settings> {
                             false
                         )
                     }
+                    "movzx" -> {
+                        val (left, right) = element.instructionArgList.instructionArgList
+
+                        val presentation =
+                            present(
+                                factory.seq(
+                                    presentInstructionArg(right),
+                                    factory.text(" = ZX("),
+                                    presentInstructionArg(left),
+                                    factory.text(")")
+                                )
+                            )
+
+                        sink.addInlineElement(
+                            element.instructionArgList.endOffset,
+                            true,
+                            presentation,
+                            false
+                        )
+                    }
                     "lea" -> {
                         val (left, right) = element.instructionArgList.instructionArgList
 
@@ -284,6 +304,25 @@ class AsmInlayProvider : InlayHintsProvider<AsmInlayProvider.Settings> {
                                     presentInstructionArg(right),
                                     factory.text(" |= "),
                                     presentInstructionArg(left)
+                                )
+                            )
+
+                        sink.addInlineElement(
+                            element.instructionArgList.endOffset,
+                            true,
+                            presentation,
+                            false
+                        )
+                    }
+
+                    "call" -> {
+                        val (func) = element.instructionArgList.instructionArgList
+
+                        val presentation =
+                            present(
+                                factory.seq(
+                                    presentInstructionArg(func),
+                                    factory.text(" ()"),
                                 )
                             )
 
