@@ -80,7 +80,11 @@ data class InstructionVariants(val list: Array<out InstructionVariant>) {
 
 fun variants(vararg list: InstructionVariant): InstructionVariants = InstructionVariants(list)
 
-data class Instruction(val mnemonic: String, val variants: InstructionVariants? = null, val memSafeAlways: Boolean = false)
+data class Instruction(
+    val mnemonic: String,
+    val variants: InstructionVariants? = null,
+    val memSafeAlways: Boolean = false
+)
 
 
 val ARITHMETIC_INSTRUCTION_VARIANTS = variants(
@@ -175,6 +179,16 @@ val ARITHMETIC_INSTRUCTION_VARIANTS = variants(
 
 val ADD = Instruction("add", ARITHMETIC_INSTRUCTION_VARIANTS)
 val AND = Instruction("and", ARITHMETIC_INSTRUCTION_VARIANTS)
+
+val CALL = Instruction(
+    "call",
+    variants(
+        InstructionVariant(
+            Mem,
+            suffix = Suffix("q")
+        )
+    )
+)
 
 val CMP = Instruction(
     "cmp",
@@ -346,6 +360,52 @@ val MOV = Instruction(
     )
 )
 
+val MOVZX = Instruction(
+    "movzx",
+    variants(
+        InstructionVariant(
+            Reg(Reg8), Reg(Reg16),
+            suffix = Suffix("b")
+        ),
+        InstructionVariant(
+            Mem, Reg(Reg16),
+            suffix = Suffix("b", mandatory = true)
+        ),
+        InstructionVariant(
+            Reg(Reg8), Reg(Reg32),
+            suffix = Suffix("b")
+        ),
+        InstructionVariant(
+            Mem, Reg(Reg32),
+            suffix = Suffix("b")
+        ),
+        InstructionVariant(
+            Reg(Reg8), Reg(Reg64),
+            suffix = Suffix("b")
+        ),
+        InstructionVariant(
+            Mem, Reg(Reg64),
+            suffix = Suffix("b", mandatory = true)
+        ),
+        InstructionVariant(
+            Reg(Reg16), Reg(Reg32),
+            suffix = Suffix("w")
+        ),
+        InstructionVariant(
+            Mem, Reg(Reg32),
+            suffix = Suffix("w", mandatory = true)
+        ),
+        InstructionVariant(
+            Reg(Reg16), Reg(Reg64),
+            suffix = Suffix("w")
+        ),
+        InstructionVariant(
+            Mem, Reg(Reg64),
+            suffix = Suffix("w", mandatory = true)
+        )
+    )
+)
+
 val POP = Instruction(
     "pop",
     variants(
@@ -353,6 +413,10 @@ val POP = Instruction(
         InstructionVariant(
             Reg(Reg64),
             suffix = Suffix("q")
+        ),
+        InstructionVariant(
+            Mem,
+            suffix = Suffix("q", mandatory = true)
         )
     )
 )
@@ -372,6 +436,10 @@ val PUSH = Instruction(
         InstructionVariant(
             Reg(Reg64),
             suffix = Suffix("q")
+        ),
+        InstructionVariant(
+            Mem,
+            suffix = Suffix("q", mandatory = true)
         )
     ),
 )
@@ -390,6 +458,7 @@ val XOR = Instruction("xor", ARITHMETIC_INSTRUCTION_VARIANTS)
 val INSTRUCTIONS = setOf(
     ADD,
     AND,
+    CALL,
     CMP,
     JA,
     JAE,
@@ -414,6 +483,7 @@ val INSTRUCTIONS = setOf(
     JZ,
     LEA,
     MOV,
+    MOVZX,
     POP,
     POPF,
     PUSH,
