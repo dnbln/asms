@@ -44,6 +44,7 @@
         <lang.findUsagesProvider language="Assembly" implementationClass="dev.dnbln.asms.lang.psi.AsmFindUsagesProvider"/>
         -->
 
+        <codeInsight.inlayProvider language="Assembly" implementationClass="dev.dnbln.asms.lang.codeInsight.inlay.AsmInlayProvider"/>
 
         <!-- Inspections -->
         <localInspection language="Assembly" implementationClass="dev.dnbln.asms.lang.inspections.AsmUnknownDirectives"

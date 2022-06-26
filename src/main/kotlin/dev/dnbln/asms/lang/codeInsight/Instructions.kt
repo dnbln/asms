@@ -238,6 +238,20 @@ val JNLE = Instruction("jnle", JMP_VARIANTS)
 val JNZ = Instruction("jnz", JMP_VARIANTS)
 val JZ = Instruction("jz", JMP_VARIANTS)
 
+val LEA = Instruction(
+    "lea",
+    variants(
+        InstructionVariant(
+            Mem, Reg(Reg32),
+            suffix = Suffix("l")
+        ),
+        InstructionVariant(
+            Mem, Reg(Reg64),
+            suffix = Suffix("q")
+        ),
+    )
+)
+
 val MOV = Instruction(
     "mov",
     variants(
@@ -397,6 +411,7 @@ val INSTRUCTIONS = setOf(
     JNLE,
     JNZ,
     JZ,
+    LEA,
     MOV,
     POP,
     POPF,
