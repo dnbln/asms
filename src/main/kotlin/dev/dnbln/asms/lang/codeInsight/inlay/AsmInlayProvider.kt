@@ -10,6 +10,7 @@ import com.intellij.refactoring.suggested.endOffset
 import dev.dnbln.asms.lang.codeInsight.findInstruction
 import dev.dnbln.asms.lang.psi.AsmInstruction
 import dev.dnbln.asms.lang.psi.AsmInstructionArg
+import java.awt.Color
 import javax.swing.JComponent
 import javax.swing.JPanel
 
@@ -53,7 +54,11 @@ class AsmInlayProvider : InlayHintsProvider<AsmInlayProvider.Settings> {
         }
 
         private fun present(presentation: InlayPresentation): InlayPresentation =
-            factory.inset(presentation, 10, 10, 5, 5)
+            factory.container(
+                presentation,
+                padding = InlayPresentationFactory.Padding(7, 7, 5, 5),
+                background = Color(64, 64, 64, 50),
+            )
 
         private fun presentForInstruction(element: AsmInstruction, editor: Editor, sink: InlayHintsSink) {
             if (!settings.instructions) return
@@ -71,7 +76,7 @@ class AsmInlayProvider : InlayHintsProvider<AsmInlayProvider.Settings> {
                             present(
                                 factory.seq(
                                     presentInstructionArg(right),
-                                    factory.text(" <compared to> "),
+                                    factory.text(" cmp "),
                                     presentInstructionArg(left)
                                 )
                             )
