@@ -45,6 +45,7 @@ COMMENT=#[^\n]*
   ","                { return COMMA; }
   "+"                { return PLUS; }
   "-"                { return MINUS; }
+  "*"                { return ASTERISK; }
   {ID}               { return ID; }
   ":"                { return COLON; }
   "$"                { return DOLLAR_SIGN; }

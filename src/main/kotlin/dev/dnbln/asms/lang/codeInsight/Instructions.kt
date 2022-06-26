@@ -30,6 +30,10 @@ sealed class OpKind {
     object Mem : OpKind() {
         override fun toString(): String = "MEM"
     }
+
+    object Indirection : OpKind() {
+        override fun toString(): String = "*INDIRECTION"
+    }
 }
 
 data class Suffix(val suffix: String, val mandatory: Boolean = false)
@@ -172,6 +176,68 @@ val ARITHMETIC_INSTRUCTION_VARIANTS = variants(
 val ADD = Instruction("add", ARITHMETIC_INSTRUCTION_VARIANTS)
 val AND = Instruction("and", ARITHMETIC_INSTRUCTION_VARIANTS)
 
+val CMP = Instruction(
+    "cmp",
+    variants(
+        // 8 bit
+        InstructionVariant(Imm, Reg(Reg8), suffix = Suffix("b")),
+        InstructionVariant(Imm, Mem, suffix = Suffix("b", mandatory = true)),
+        InstructionVariant(Reg(Reg8), Reg(Reg8), suffix = Suffix("b")),
+        InstructionVariant(Reg(Reg8), Mem, suffix = Suffix("b")),
+        InstructionVariant(Mem, Reg(Reg8), suffix = Suffix("b")),
+
+        // 16 bit
+        InstructionVariant(Imm, Reg(Reg16), suffix = Suffix("w")),
+        InstructionVariant(Imm, Mem, suffix = Suffix("w", mandatory = true)),
+        InstructionVariant(Reg(Reg16), Reg(Reg16), suffix = Suffix("w")),
+        InstructionVariant(Reg(Reg16), Mem, suffix = Suffix("w")),
+        InstructionVariant(Mem, Reg(Reg16), suffix = Suffix("w")),
+
+        // 32 bit
+        InstructionVariant(Imm, Reg(Reg32), suffix = Suffix("l")),
+        InstructionVariant(Imm, Mem, suffix = Suffix("l", mandatory = true)),
+        InstructionVariant(Reg(Reg32), Reg(Reg32), suffix = Suffix("l")),
+        InstructionVariant(Reg(Reg32), Mem, suffix = Suffix("l")),
+        InstructionVariant(Mem, Reg(Reg32), suffix = Suffix("l")),
+
+        // 64 bit
+        InstructionVariant(Imm, Reg(Reg64), suffix = Suffix("q")),
+        InstructionVariant(Imm, Mem, suffix = Suffix("q", mandatory = true)),
+        InstructionVariant(Reg(Reg64), Reg(Reg64), suffix = Suffix("q")),
+        InstructionVariant(Reg(Reg64), Mem, suffix = Suffix("q")),
+        InstructionVariant(Mem, Reg(Reg64), suffix = Suffix("q")),
+    )
+)
+
+val JMP_VARIANTS = variants(
+    InstructionVariant(Mem, suffix = Suffix("q")),
+    InstructionVariant(Indirection, suffix = Suffix("q")),
+    InstructionVariant(Mem, suffix = Suffix("l")),
+    InstructionVariant(Indirection, suffix = Suffix("l")),
+)
+
+val JA = Instruction("ja", JMP_VARIANTS)
+val JAE = Instruction("jae", JMP_VARIANTS)
+val JB = Instruction("jb", JMP_VARIANTS)
+val JBE = Instruction("jbe", JMP_VARIANTS)
+val JE = Instruction("je", JMP_VARIANTS)
+val JG = Instruction("jg", JMP_VARIANTS)
+val JGE = Instruction("jge", JMP_VARIANTS)
+val JL = Instruction("jl", JMP_VARIANTS)
+val JLE = Instruction("jle", JMP_VARIANTS)
+val JMP = Instruction("jmp", JMP_VARIANTS)
+val JNA = Instruction("jna", JMP_VARIANTS)
+val JNAE = Instruction("jnae", JMP_VARIANTS)
+val JNB = Instruction("jnb", JMP_VARIANTS)
+val JNBE = Instruction("jnbe", JMP_VARIANTS)
+val JNE = Instruction("jne", JMP_VARIANTS)
+val JNG = Instruction("jng", JMP_VARIANTS)
+val JNGE = Instruction("jnge", JMP_VARIANTS)
+val JNL = Instruction("jnl", JMP_VARIANTS)
+val JNLE = Instruction("jnle", JMP_VARIANTS)
+val JNZ = Instruction("jnz", JMP_VARIANTS)
+val JZ = Instruction("jz", JMP_VARIANTS)
+
 val MOV = Instruction(
     "mov",
     variants(
@@ -307,7 +373,39 @@ val SYSCALL = Instruction("syscall")
 val XOR = Instruction("xor", ARITHMETIC_INSTRUCTION_VARIANTS)
 
 val INSTRUCTIONS = setOf(
-    ADD, AND, MOV, POP, POPF, PUSH, PUSHF, OR, SUB, SYSCALL, XOR
+    ADD,
+    AND,
+    CMP,
+    JA,
+    JAE,
+    JB,
+    JBE,
+    JE,
+    JG,
+    JGE,
+    JL,
+    JLE,
+    JMP,
+    JNA,
+    JNAE,
+    JNB,
+    JNBE,
+    JNE,
+    JNG,
+    JNGE,
+    JNL,
+    JNLE,
+    JNZ,
+    JZ,
+    MOV,
+    POP,
+    POPF,
+    PUSH,
+    PUSHF,
+    OR,
+    SUB,
+    SYSCALL,
+    XOR
 )
 
 fun findInstruction(instr: AsmInstruction): Pair<Instruction, InstructionVariant?>? {
@@ -322,6 +420,8 @@ fun findInstruction(instr: AsmInstruction): Pair<Instruction, InstructionVariant
             if (reg != null)
                 instrOperands.add(Reg(reg))
             else return null
+        } else if (arg.indirection != null) {
+            instrOperands.add(Indirection)
         } else {
             error("Unknown instruction arg type")
         }

@@ -37,7 +37,7 @@ instruction ::= instruction_name instruction_arg_list NEWLINE
 instruction_name ::= ID
 instruction_arg_list ::= <<comma instruction_arg>> | ()
 
-instruction_arg ::= imm | mem | reg
+instruction_arg ::= imm | mem | reg | indirection
 
 imm ::= DOLLAR_SIGN imm_value
 imm_value ::= number_literal | char_lit | mem_offset
@@ -72,6 +72,11 @@ mem_scale ::= num
 // ===      Registers          ===
 // ===============================
 reg ::= PERCENT ID
+
+// ===============================
+// ===      Indirection        ===
+// ===============================
+indirection ::= ASTERISK (reg | mem)
 
 // ===============================
 // ===       Label             ===
