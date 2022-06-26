@@ -88,10 +88,58 @@ class AsmInlayProvider : InlayHintsProvider<AsmInlayProvider.Settings> {
                             false
                         )
                     }
+                    "ja", "jg" -> sink.addInlineElement(
+                        element.instructionArgList.endOffset,
+                        true,
+                        present(factory.text(">")),
+                        false
+                    )
+                    "jae", "jge" -> sink.addInlineElement(
+                        element.instructionArgList.endOffset,
+                        true,
+                        present(factory.text(">=")),
+                        false
+                    )
+                    "jb", "jl" -> sink.addInlineElement(
+                        element.instructionArgList.endOffset,
+                        true,
+                        present(factory.text("<")),
+                        false
+                    )
+                    "jbe", "jle" -> sink.addInlineElement(
+                        element.instructionArgList.endOffset,
+                        true,
+                        present(factory.text("<=")),
+                        false
+                    )
                     "je" -> sink.addInlineElement(
                         element.instructionArgList.endOffset,
                         true,
                         present(factory.text("==")),
+                        false
+                    )
+                    "jna", "jng" -> sink.addInlineElement(
+                        element.instructionArgList.endOffset,
+                        true,
+                        present(factory.text("<= [not >]")),
+                        false
+                    )
+                    "jnae", "jnge" -> sink.addInlineElement(
+                        element.instructionArgList.endOffset,
+                        true,
+                        present(factory.text("< [not >=]")),
+                        false
+                    )
+                    "jnb", "jnl" -> sink.addInlineElement(
+                        element.instructionArgList.endOffset,
+                        true,
+                        present(factory.text(">= [not <]")),
+                        false
+                    )
+                    "jnbe", "jnle" -> sink.addInlineElement(
+                        element.instructionArgList.endOffset,
+                        true,
+                        present(factory.text("> [not <=]")),
                         false
                     )
                     "jne" -> sink.addInlineElement(
@@ -100,28 +148,16 @@ class AsmInlayProvider : InlayHintsProvider<AsmInlayProvider.Settings> {
                         present(factory.text("!=")),
                         false
                     )
-                    "jg" -> sink.addInlineElement(
+                    "jnz" -> sink.addInlineElement(
                         element.instructionArgList.endOffset,
                         true,
-                        present(factory.text(">")),
+                        present(factory.text("!= 0")),
                         false
                     )
-                    "jge" -> sink.addInlineElement(
+                    "jz" -> sink.addInlineElement(
                         element.instructionArgList.endOffset,
                         true,
-                        present(factory.text(">=")),
-                        false
-                    )
-                    "jl" -> sink.addInlineElement(
-                        element.instructionArgList.endOffset,
-                        true,
-                        present(factory.text("<")),
-                        false
-                    )
-                    "jle" -> sink.addInlineElement(
-                        element.instructionArgList.endOffset,
-                        true,
-                        present(factory.text("<=")),
+                        present(factory.text("== 0")),
                         false
                     )
                     "mov" -> {
