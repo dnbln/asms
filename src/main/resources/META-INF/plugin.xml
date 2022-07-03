@@ -46,6 +46,8 @@
 
         <codeInsight.inlayProvider language="Assembly" implementationClass="dev.dnbln.asms.lang.codeInsight.inlay.AsmInlayProvider"/>
 
+        <psi.declarationProvider implementation="dev.dnbln.asms.lang.psi.AsmDeclarationProvider"/>
+
         <!-- Inspections -->
         <localInspection language="Assembly" implementationClass="dev.dnbln.asms.lang.inspections.AsmUnknownDirectives"
                          displayName="Unknown directives" groupName="Assembly" enabledByDefault="true" level="ERROR"/>

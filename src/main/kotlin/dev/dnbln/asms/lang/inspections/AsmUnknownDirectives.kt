@@ -4,8 +4,11 @@ import com.intellij.codeInspection.LocalInspectionTool
 import com.intellij.codeInspection.LocalInspectionToolSession
 import com.intellij.codeInspection.ProblemsHolder
 import com.intellij.psi.PsiElementVisitor
+import dev.dnbln.asms.lang.codeInsight.findDirective
+import dev.dnbln.asms.lang.psi.AsmDirective
 import dev.dnbln.asms.lang.psi.AsmDirectiveHead
 import dev.dnbln.asms.lang.psi.AsmVisitor
+import dev.dnbln.asms.lang.psi.directiveName
 
 class AsmUnknownDirectives : LocalInspectionTool() {
     companion object {
@@ -194,12 +197,17 @@ class AsmUnknownDirectives : LocalInspectionTool() {
         isOnTheFly: Boolean,
         session: LocalInspectionToolSession
     ): PsiElementVisitor = object : AsmVisitor() {
-        override fun visitDirectiveHead(head: AsmDirectiveHead) {
-            val directiveName = (head.decLiteral?.text ?: "") + head.id.text
+//        override fun visitDirectiveHead(head: AsmDirectiveHead) {
+//            val directiveName = head.directiveName
+//
+//            if (directiveName !in KNOWN_DIRECTIVES) {
+//                holder.registerProblem(head, "Unknown directive")
+//            }
+//        }
 
-            if (directiveName !in KNOWN_DIRECTIVES) {
-                holder.registerProblem(head, "Unknown directive")
-            }
+        override fun visitDirective(dir: AsmDirective) {
+            if (findDirective(dir) == null)
+                holder.registerProblem(dir, "Unknown directive")
         }
     }
 }

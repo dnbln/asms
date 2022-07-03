@@ -21,7 +21,9 @@
 
 file ::= item*
 
-item ::= NEWLINE | label | directive | instruction
+item ::= NEWLINE | label | directive | instruction {
+    mixin = "dev.dnbln.asms.lang.psi.AsmItemMixin"
+}
 
 private meta comma ::= <<param>> (COMMA <<param>>)*
 private meta plus_minus_chain_s ::= (PLUS | MINUS)? <<param>> ((PLUS | MINUS) <<param>>)*
@@ -29,7 +31,7 @@ private meta plus_minus_chain_s ::= (PLUS | MINUS)? <<param>> ((PLUS | MINUS) <<
 possibly_dot_id ::= DOT? ID
 
 label ::= possibly_dot_id COLON NEWLINE {
-    implements = "dev.dnbln.asms.lang.psi.AsmNamedElement"
+    implements = ["dev.dnbln.asms.lang.psi.AsmNamedElement" "com.intellij.model.Symbol"]
     mixin = "dev.dnbln.asms.lang.psi.AsmLabelMixin"
 }
 instruction ::= instruction_name instruction_arg_list NEWLINE
@@ -90,9 +92,15 @@ label_ref ::= possibly_dot_id {
 // ===       Directives        ===
 // ===============================
 
-directive ::= directive_code NEWLINE
+directive ::= directive_code NEWLINE {
+    mixin = "dev.dnbln.asms.lang.psi.AsmDirectiveMixin"
+}
 
 directive_code ::= directive_head directive_args?
 directive_head ::= DOT DEC_LITERAL? ID // the DEC_LITERAL is there for the .2byte, .4byte and .8byte directives
 directive_args ::= <<comma directive_arg>>
-directive_arg ::= ID | num | STRING_LITERAL
+directive_arg ::= directive_arg_name | num | STRING_LITERAL
+directive_arg_name ::= possibly_dot_id {
+    implements = ["dev.dnbln.asms.lang.psi.AsmNamedElement" "com.intellij.model.Symbol"]
+    mixin = "dev.dnbln.asms.lang.psi.AsmDirectiveArgNameMixin"
+}
