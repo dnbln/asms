@@ -99,8 +99,10 @@ directive ::= directive_code NEWLINE {
 directive_code ::= directive_head directive_args?
 directive_head ::= DOT DEC_LITERAL? ID // the DEC_LITERAL is there for the .2byte, .4byte and .8byte directives
 directive_args ::= <<comma directive_arg>>
-directive_arg ::= directive_arg_name | num | STRING_LITERAL
+directive_arg ::= directive_arg_name | num | str_lit
 directive_arg_name ::= possibly_dot_id {
     implements = ["dev.dnbln.asms.lang.psi.AsmNamedElement" "com.intellij.model.Symbol"]
     mixin = "dev.dnbln.asms.lang.psi.AsmDirectiveArgNameMixin"
 }
+
+str_lit ::= STRING_LITERAL

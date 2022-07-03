@@ -3,9 +3,6 @@ package dev.dnbln.asms.lang.psi
 import com.intellij.codeInsight.lookup.LookupElementBuilder
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.*
-import com.intellij.psi.util.CachedValueProvider
-import com.intellij.psi.util.CachedValuesManager
-import com.intellij.psi.util.PsiModificationTracker
 import dev.dnbln.asms.lang.codeInsight.AsmScopeProcessor
 
 class AsmLabelReference(element: AsmLabelRef, range: TextRange) : PsiReferenceBase<AsmLabelRef>(element, range),
@@ -22,18 +19,17 @@ class AsmLabelReference(element: AsmLabelRef, range: TextRange) : PsiReferenceBa
         val resolveState = (element.containingFile as AsmFile).resolveDeclarations()
 
         val m = resolveState.get(AsmScopeProcessor.DEFINED_NAMES_MAP)
-        val results = m[nameLookingFor].orEmpty()
+        val results = listOfNotNull(m[nameLookingFor])
 
         return PsiElementResolveResult.createResults(results)
     }
 
     override fun getVariants(): Array<Any> {
-        val resolveState = ResolveState()
-        AsmScopeProcessor().execute(element.containingFile, resolveState)
+        val resolveState = (element.containingFile as AsmFile).resolveDeclarations()
 
-        val results =
-            resolveState.get(AsmScopeProcessor.DEFINED_NAMES_MAP)
-                .flatMap { l -> l.value.map { LookupElementBuilder.createWithSmartPointer(l.key, it) } }
+        val m = resolveState.get(AsmScopeProcessor.DEFINED_NAMES_MAP)
+
+        val results = m.map { l -> LookupElementBuilder.createWithSmartPointer(l.key, l.value) }
 
         return results.toTypedArray()
     }

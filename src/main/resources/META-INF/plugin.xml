@@ -49,7 +49,7 @@
         <psi.declarationProvider implementation="dev.dnbln.asms.lang.psi.AsmDeclarationProvider"/>
 
         <!-- Inspections -->
-        <localInspection language="Assembly" implementationClass="dev.dnbln.asms.lang.inspections.AsmUnknownDirectives"
+        <localInspection language="Assembly" implementationClass="dev.dnbln.asms.lang.inspections.AsmDirectiveErrors"
                          displayName="Unknown directives" groupName="Assembly" enabledByDefault="true" level="ERROR"/>
         <localInspection language="Assembly" implementationClass="dev.dnbln.asms.lang.inspections.AsmUnknownRegisters"
                          displayName="Unknown registers" groupName="Assembly" enabledByDefault="true" level="ERROR"/>

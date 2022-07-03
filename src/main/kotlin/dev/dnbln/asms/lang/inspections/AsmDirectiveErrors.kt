@@ -4,13 +4,12 @@ import com.intellij.codeInspection.LocalInspectionTool
 import com.intellij.codeInspection.LocalInspectionToolSession
 import com.intellij.codeInspection.ProblemsHolder
 import com.intellij.psi.PsiElementVisitor
+import dev.dnbln.asms.lang.codeInsight.DirectiveError
 import dev.dnbln.asms.lang.codeInsight.findDirective
 import dev.dnbln.asms.lang.psi.AsmDirective
-import dev.dnbln.asms.lang.psi.AsmDirectiveHead
 import dev.dnbln.asms.lang.psi.AsmVisitor
-import dev.dnbln.asms.lang.psi.directiveName
 
-class AsmUnknownDirectives : LocalInspectionTool() {
+class AsmDirectiveErrors : LocalInspectionTool() {
     companion object {
         // https://sourceware.org/binutils/docs/as/Pseudo-Ops.html#Pseudo-Ops
         private val KNOWN_DIRECTIVES = setOf(
@@ -206,8 +205,18 @@ class AsmUnknownDirectives : LocalInspectionTool() {
 //        }
 
         override fun visitDirective(dir: AsmDirective) {
-            if (findDirective(dir) == null)
+            val directive = findDirective(dir)
+
+            if (directive == null) {
                 holder.registerProblem(dir, "Unknown directive")
+                return
+            }
+
+            directive.second.onFailure {
+                val err = it as? DirectiveError ?: return@onFailure
+
+                holder.registerProblem(err.element, err.displayText)
+            }
         }
     }
 }
