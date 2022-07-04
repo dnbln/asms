@@ -3,6 +3,7 @@ package dev.dnbln.asms.lang.codeInsight.inlay
 import com.intellij.codeInsight.hints.*
 import com.intellij.codeInsight.hints.ImmediateConfigurable.Case
 import com.intellij.codeInsight.hints.presentation.InlayPresentation
+import com.intellij.codeInsight.hints.presentation.PresentationFactory
 import com.intellij.openapi.editor.Editor
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
@@ -14,6 +15,21 @@ import java.awt.Color
 import javax.swing.JComponent
 import javax.swing.JPanel
 
+
+@Suppress("UnstableApiUsage")
+class AsmInlayPresentationFactory(val factory: PresentationFactory) : InlayPresentationFactory by factory {
+    fun presentInstructionArg(arg: AsmInstructionArg): InlayPresentation = if (arg.reg != null) {
+        factory.text(arg.reg!!.text)
+    } else if (arg.imm != null) {
+        factory.text(arg.imm!!.text)
+    } else if (arg.mem != null) {
+        factory.text(arg.mem!!.text)
+    } else if (arg.indirection != null) {
+        factory.text(arg.indirection!!.text)
+    } else {
+        error("Unknown arg kind")
+    }
+}
 
 @Suppress("UnstableApiUsage")
 class AsmInlayProvider : InlayHintsProvider<AsmInlayProvider.Settings> {
@@ -66,287 +82,20 @@ class AsmInlayProvider : InlayHintsProvider<AsmInlayProvider.Settings> {
             val instr = findInstruction(element)
 
             if (instr != null) {
-                val (ins, _) = instr
+                val (ins, variant) = instr
 
-                when (ins.mnemonic) {
-                    "cmp" -> {
-                        val (left, right) = element.instructionArgList.instructionArgList
+                if (ins.present != null) {
+                    val presentation = (ins.present)(element, variant, AsmInlayPresentationFactory(factory))
 
-                        val presentation =
-                            present(
-                                factory.seq(
-                                    presentInstructionArg(right),
-                                    factory.text(" cmp "),
-                                    presentInstructionArg(left)
-                                )
-                            )
-
+                    if (presentation != null)
                         sink.addInlineElement(
                             element.instructionArgList.endOffset,
                             true,
-                            presentation,
+                            present(presentation),
                             false
                         )
-                    }
-                    "ja", "jg" -> sink.addInlineElement(
-                        element.instructionArgList.endOffset,
-                        true,
-                        present(factory.text(">")),
-                        false
-                    )
-                    "jae", "jge" -> sink.addInlineElement(
-                        element.instructionArgList.endOffset,
-                        true,
-                        present(factory.text(">=")),
-                        false
-                    )
-                    "jb", "jl" -> sink.addInlineElement(
-                        element.instructionArgList.endOffset,
-                        true,
-                        present(factory.text("<")),
-                        false
-                    )
-                    "jbe", "jle" -> sink.addInlineElement(
-                        element.instructionArgList.endOffset,
-                        true,
-                        present(factory.text("<=")),
-                        false
-                    )
-                    "je" -> sink.addInlineElement(
-                        element.instructionArgList.endOffset,
-                        true,
-                        present(factory.text("==")),
-                        false
-                    )
-                    "jna", "jng" -> sink.addInlineElement(
-                        element.instructionArgList.endOffset,
-                        true,
-                        present(factory.text("<= [not >]")),
-                        false
-                    )
-                    "jnae", "jnge" -> sink.addInlineElement(
-                        element.instructionArgList.endOffset,
-                        true,
-                        present(factory.text("< [not >=]")),
-                        false
-                    )
-                    "jnb", "jnl" -> sink.addInlineElement(
-                        element.instructionArgList.endOffset,
-                        true,
-                        present(factory.text(">= [not <]")),
-                        false
-                    )
-                    "jnbe", "jnle" -> sink.addInlineElement(
-                        element.instructionArgList.endOffset,
-                        true,
-                        present(factory.text("> [not <=]")),
-                        false
-                    )
-                    "jne" -> sink.addInlineElement(
-                        element.instructionArgList.endOffset,
-                        true,
-                        present(factory.text("!=")),
-                        false
-                    )
-                    "jnz" -> sink.addInlineElement(
-                        element.instructionArgList.endOffset,
-                        true,
-                        present(factory.text("!= 0")),
-                        false
-                    )
-                    "jz" -> sink.addInlineElement(
-                        element.instructionArgList.endOffset,
-                        true,
-                        present(factory.text("== 0")),
-                        false
-                    )
-                    "mov" -> {
-                        val (left, right) = element.instructionArgList.instructionArgList
-
-                        val presentation =
-                            present(
-                                factory.seq(
-                                    presentInstructionArg(right),
-                                    factory.text(" = "),
-                                    presentInstructionArg(left)
-                                )
-                            )
-
-                        sink.addInlineElement(
-                            element.instructionArgList.endOffset,
-                            true,
-                            presentation,
-                            false
-                        )
-                    }
-                    "movzx" -> {
-                        val (left, right) = element.instructionArgList.instructionArgList
-
-                        val presentation =
-                            present(
-                                factory.seq(
-                                    presentInstructionArg(right),
-                                    factory.text(" = ZX("),
-                                    presentInstructionArg(left),
-                                    factory.text(")")
-                                )
-                            )
-
-                        sink.addInlineElement(
-                            element.instructionArgList.endOffset,
-                            true,
-                            presentation,
-                            false
-                        )
-                    }
-                    "lea" -> {
-                        val (left, right) = element.instructionArgList.instructionArgList
-
-                        val presentation =
-                            present(
-                                factory.seq(
-                                    presentInstructionArg(right),
-                                    factory.text(" = &"),
-                                    presentInstructionArg(left)
-                                )
-                            )
-
-                        sink.addInlineElement(
-                            element.instructionArgList.endOffset,
-                            true,
-                            presentation,
-                            false
-                        )
-                    }
-                    "add" -> {
-                        val (left, right) = element.instructionArgList.instructionArgList
-
-                        val presentation =
-                            present(
-                                factory.seq(
-                                    presentInstructionArg(right),
-                                    factory.text(" += "),
-                                    presentInstructionArg(left)
-                                )
-                            )
-
-
-                        sink.addInlineElement(
-                            element.instructionArgList.endOffset,
-                            true,
-                            presentation,
-                            false
-                        )
-                    }
-                    "sub" -> {
-                        val (left, right) = element.instructionArgList.instructionArgList
-
-                        val presentation =
-                            present(
-                                factory.seq(
-                                    presentInstructionArg(right),
-                                    factory.text(" -= "),
-                                    presentInstructionArg(left)
-                                )
-                            )
-
-                        sink.addInlineElement(
-                            element.instructionArgList.endOffset,
-                            true,
-                            presentation,
-                            false
-                        )
-                    }
-                    "and" -> {
-                        val (left, right) = element.instructionArgList.instructionArgList
-
-                        val presentation =
-                            present(
-                                factory.seq(
-                                    presentInstructionArg(right),
-                                    factory.text(" &= "),
-                                    presentInstructionArg(left)
-                                )
-                            )
-
-                        sink.addInlineElement(
-                            element.instructionArgList.endOffset,
-                            true,
-                            presentation,
-                            false
-                        )
-                    }
-                    "xor" -> {
-                        val (left, right) = element.instructionArgList.instructionArgList
-
-                        val presentation =
-                            present(
-                                factory.seq(
-                                    presentInstructionArg(right),
-                                    factory.text(" ^= "),
-                                    presentInstructionArg(left)
-                                )
-                            )
-
-                        sink.addInlineElement(
-                            element.instructionArgList.endOffset,
-                            true,
-                            presentation,
-                            false
-                        )
-                    }
-                    "or" -> {
-                        val (left, right) = element.instructionArgList.instructionArgList
-
-                        val presentation =
-                            present(
-                                factory.seq(
-                                    presentInstructionArg(right),
-                                    factory.text(" |= "),
-                                    presentInstructionArg(left)
-                                )
-                            )
-
-                        sink.addInlineElement(
-                            element.instructionArgList.endOffset,
-                            true,
-                            presentation,
-                            false
-                        )
-                    }
-
-                    "call" -> {
-                        val (func) = element.instructionArgList.instructionArgList
-
-                        val presentation =
-                            present(
-                                factory.seq(
-                                    presentInstructionArg(func),
-                                    factory.text(" ()"),
-                                )
-                            )
-
-                        sink.addInlineElement(
-                            element.instructionArgList.endOffset,
-                            true,
-                            presentation,
-                            false
-                        )
-                    }
                 }
             }
-        }
-
-        private fun presentInstructionArg(arg: AsmInstructionArg): InlayPresentation = if (arg.reg != null) {
-            factory.text(arg.reg!!.text)
-        } else if (arg.imm != null) {
-            factory.text(arg.imm!!.text)
-        } else if (arg.mem != null) {
-            factory.text(arg.mem!!.text)
-        } else if (arg.indirection != null) {
-            factory.text(arg.indirection!!.text)
-        } else {
-            error("Unknown arg kind")
         }
     }
 

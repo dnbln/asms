@@ -1,7 +1,9 @@
 package dev.dnbln.asms.lang.codeInsight
 
+import com.intellij.codeInsight.hints.presentation.InlayPresentation
 import dev.dnbln.asms.lang.codeInsight.OpKind.*
 import dev.dnbln.asms.lang.codeInsight.RegisterKind.*
+import dev.dnbln.asms.lang.codeInsight.inlay.AsmInlayPresentationFactory
 import dev.dnbln.asms.lang.psi.AsmInstruction
 
 sealed class OpKind {
@@ -80,10 +82,12 @@ data class InstructionVariants(val list: Array<out InstructionVariant>) {
 
 fun variants(vararg list: InstructionVariant): InstructionVariants = InstructionVariants(list)
 
+@Suppress("UnstableApiUsage")
 data class Instruction(
     val mnemonic: String,
     val variants: InstructionVariants? = null,
-    val memSafeAlways: Boolean = false
+    val memSafeAlways: Boolean = false,
+    val present: ((instruction: AsmInstruction, variant: InstructionVariant?, factory: AsmInlayPresentationFactory) -> InlayPresentation?)? = null,
 )
 
 
@@ -177,8 +181,26 @@ val ARITHMETIC_INSTRUCTION_VARIANTS = variants(
     ),
 )
 
-val ADD = Instruction("add", ARITHMETIC_INSTRUCTION_VARIANTS)
-val AND = Instruction("and", ARITHMETIC_INSTRUCTION_VARIANTS)
+val ADD = Instruction("add", ARITHMETIC_INSTRUCTION_VARIANTS) { instruction, _, factory ->
+    val (left, right) = instruction.instructionArgList.instructionArgList
+
+    @Suppress("UnstableApiUsage")
+    factory.factory.seq(
+        factory.presentInstructionArg(right),
+        factory.text(" += "),
+        factory.presentInstructionArg(left)
+    )
+}
+val AND = Instruction("and", ARITHMETIC_INSTRUCTION_VARIANTS) { instruction, _, factory ->
+    val (left, right) = instruction.instructionArgList.instructionArgList
+
+    @Suppress("UnstableApiUsage")
+    factory.factory.seq(
+        factory.presentInstructionArg(right),
+        factory.text(" &= "),
+        factory.presentInstructionArg(left)
+    )
+}
 
 val CALL = Instruction(
     "call",
@@ -188,7 +210,15 @@ val CALL = Instruction(
             suffix = Suffix("q")
         )
     )
-)
+) { instruction, _, factory ->
+    val (call) = instruction.instructionArgList.instructionArgList
+
+    @Suppress("UnstableApiUsage")
+    factory.factory.seq(
+        factory.presentInstructionArg(call),
+        factory.text(" ()"),
+    )
+}
 
 val CMP = Instruction(
     "cmp",
@@ -221,7 +251,16 @@ val CMP = Instruction(
         InstructionVariant(Reg(Reg64), Mem, suffix = Suffix("q")),
         InstructionVariant(Mem, Reg(Reg64), suffix = Suffix("q")),
     )
-)
+) { instruction, _, factory ->
+    val (left, right) = instruction.instructionArgList.instructionArgList
+
+    @Suppress("UnstableApiUsage")
+    factory.factory.seq(
+        factory.presentInstructionArg(right),
+        factory.text(" cmp "),
+        factory.presentInstructionArg(left)
+    )
+}
 
 val JMP_VARIANTS = variants(
     InstructionVariant(Mem, suffix = Suffix("q")),
@@ -230,27 +269,87 @@ val JMP_VARIANTS = variants(
     InstructionVariant(Indirection, suffix = Suffix("l")),
 )
 
-val JA = Instruction("ja", JMP_VARIANTS)
-val JAE = Instruction("jae", JMP_VARIANTS)
-val JB = Instruction("jb", JMP_VARIANTS)
-val JBE = Instruction("jbe", JMP_VARIANTS)
-val JE = Instruction("je", JMP_VARIANTS)
-val JG = Instruction("jg", JMP_VARIANTS)
-val JGE = Instruction("jge", JMP_VARIANTS)
-val JL = Instruction("jl", JMP_VARIANTS)
-val JLE = Instruction("jle", JMP_VARIANTS)
+val JA = Instruction("ja", JMP_VARIANTS) { _, _, factory ->
+    @Suppress("UnstableApiUsage")
+    factory.text(">")
+}
+val JAE = Instruction("jae", JMP_VARIANTS){ _, _, factory ->
+    @Suppress("UnstableApiUsage")
+    factory.text(">=")
+}
+val JB = Instruction("jb", JMP_VARIANTS){ _, _, factory ->
+    @Suppress("UnstableApiUsage")
+    factory.text("<")
+}
+val JBE = Instruction("jbe", JMP_VARIANTS){ _, _, factory ->
+    @Suppress("UnstableApiUsage")
+    factory.text("<=")
+}
+val JE = Instruction("je", JMP_VARIANTS){ _, _, factory ->
+    @Suppress("UnstableApiUsage")
+    factory.text("==")
+}
+val JG = Instruction("jg", JMP_VARIANTS){ _, _, factory ->
+    @Suppress("UnstableApiUsage")
+    factory.text(">")
+}
+val JGE = Instruction("jge", JMP_VARIANTS){ _, _, factory ->
+    @Suppress("UnstableApiUsage")
+    factory.text(">=")
+}
+val JL = Instruction("jl", JMP_VARIANTS){ _, _, factory ->
+    @Suppress("UnstableApiUsage")
+    factory.text("<")
+}
+val JLE = Instruction("jle", JMP_VARIANTS){ _, _, factory ->
+    @Suppress("UnstableApiUsage")
+    factory.text("<=")
+}
 val JMP = Instruction("jmp", JMP_VARIANTS)
-val JNA = Instruction("jna", JMP_VARIANTS)
-val JNAE = Instruction("jnae", JMP_VARIANTS)
-val JNB = Instruction("jnb", JMP_VARIANTS)
-val JNBE = Instruction("jnbe", JMP_VARIANTS)
-val JNE = Instruction("jne", JMP_VARIANTS)
-val JNG = Instruction("jng", JMP_VARIANTS)
-val JNGE = Instruction("jnge", JMP_VARIANTS)
-val JNL = Instruction("jnl", JMP_VARIANTS)
-val JNLE = Instruction("jnle", JMP_VARIANTS)
-val JNZ = Instruction("jnz", JMP_VARIANTS)
-val JZ = Instruction("jz", JMP_VARIANTS)
+val JNA = Instruction("jna", JMP_VARIANTS){ _, _, factory ->
+    @Suppress("UnstableApiUsage")
+    factory.text("<= [not >]")
+}
+val JNAE = Instruction("jnae", JMP_VARIANTS){ _, _, factory ->
+    @Suppress("UnstableApiUsage")
+    factory.text("< [not >=]")
+}
+val JNB = Instruction("jnb", JMP_VARIANTS){ _, _, factory ->
+    @Suppress("UnstableApiUsage")
+    factory.text(">= [not <]")
+}
+val JNBE = Instruction("jnbe", JMP_VARIANTS) { _, _, factory ->
+    @Suppress("UnstableApiUsage")
+    factory.text("> [not <=]")
+}
+val JNE = Instruction("jne", JMP_VARIANTS){ _, _, factory ->
+    @Suppress("UnstableApiUsage")
+    factory.text("!=")
+}
+val JNG = Instruction("jng", JMP_VARIANTS){ _, _, factory ->
+    @Suppress("UnstableApiUsage")
+    factory.text("<= [not >]")
+}
+val JNGE = Instruction("jnge", JMP_VARIANTS){ _, _, factory ->
+    @Suppress("UnstableApiUsage")
+    factory.text("< [not >=]")
+}
+val JNL = Instruction("jnl", JMP_VARIANTS){ _, _, factory ->
+    @Suppress("UnstableApiUsage")
+    factory.text(">= [not <]")
+}
+val JNLE = Instruction("jnle", JMP_VARIANTS) { _, _, factory ->
+    @Suppress("UnstableApiUsage")
+    factory.text("> [not <=]")
+}
+val JNZ = Instruction("jnz", JMP_VARIANTS){ _, _, factory ->
+    @Suppress("UnstableApiUsage")
+    factory.text("!= 0")
+}
+val JZ = Instruction("jz", JMP_VARIANTS){ _, _, factory ->
+    @Suppress("UnstableApiUsage")
+    factory.text("== 0")
+}
 
 val LEA = Instruction(
     "lea",
@@ -265,7 +364,16 @@ val LEA = Instruction(
         ),
     ),
     memSafeAlways = true
-)
+) { instruction, _, factory ->
+    val (left, right) = instruction.instructionArgList.instructionArgList
+
+    @Suppress("UnstableApiUsage")
+    factory.factory.seq(
+        factory.presentInstructionArg(right),
+        factory.text(" = &"),
+        factory.presentInstructionArg(left)
+    )
+}
 
 val MOV = Instruction(
     "mov",
@@ -358,7 +466,16 @@ val MOV = Instruction(
             suffix = Suffix("q")
         )
     )
-)
+) { instruction, _, factory ->
+    val (left, right) = instruction.instructionArgList.instructionArgList
+
+    @Suppress("UnstableApiUsage")
+    factory.factory.seq(
+        factory.presentInstructionArg(right),
+        factory.text(" = "),
+        factory.presentInstructionArg(left)
+    )
+}
 
 val MOVZX = Instruction(
     "movzx",
@@ -404,7 +521,17 @@ val MOVZX = Instruction(
             suffix = Suffix("w", mandatory = true)
         )
     )
-)
+) { instruction, _, factory ->
+    val (left, right) = instruction.instructionArgList.instructionArgList
+
+    @Suppress("UnstableApiUsage")
+    factory.factory.seq(
+        factory.presentInstructionArg(right),
+        factory.text(" = ZX("),
+        factory.presentInstructionArg(left),
+        factory.text(")")
+    )
+}
 
 val POP = Instruction(
     "pop",
@@ -450,10 +577,37 @@ val PUSHF = Instruction(
     )
 )
 
-val OR = Instruction("or", ARITHMETIC_INSTRUCTION_VARIANTS)
-val SUB = Instruction("sub", ARITHMETIC_INSTRUCTION_VARIANTS)
+val OR = Instruction("or", ARITHMETIC_INSTRUCTION_VARIANTS) { instruction, _, factory ->
+    val (left, right) = instruction.instructionArgList.instructionArgList
+
+    @Suppress("UnstableApiUsage")
+    factory.factory.seq(
+        factory.presentInstructionArg(right),
+        factory.text(" |= "),
+        factory.presentInstructionArg(left)
+    )
+}
+val SUB = Instruction("sub", ARITHMETIC_INSTRUCTION_VARIANTS) { instruction, _, factory ->
+    val (left, right) = instruction.instructionArgList.instructionArgList
+
+    @Suppress("UnstableApiUsage")
+    factory.factory.seq(
+        factory.presentInstructionArg(right),
+        factory.text(" -= "),
+        factory.presentInstructionArg(left)
+    )
+}
 val SYSCALL = Instruction("syscall")
-val XOR = Instruction("xor", ARITHMETIC_INSTRUCTION_VARIANTS)
+val XOR = Instruction("xor", ARITHMETIC_INSTRUCTION_VARIANTS) { instruction, _, factory ->
+    val (left, right) = instruction.instructionArgList.instructionArgList
+
+    @Suppress("UnstableApiUsage")
+    factory.factory.seq(
+        factory.presentInstructionArg(right),
+        factory.text(" ^= "),
+        factory.presentInstructionArg(left)
+    )
+}
 
 val INSTRUCTIONS = setOf(
     ADD,
