@@ -44,7 +44,8 @@ data class InstructionVariant(
     val op1: OpKind? = null,
     val op2: OpKind? = null,
     val op3: OpKind? = null,
-    val suffix: Suffix? = null
+    val suffix: Suffix? = null,
+    val data: Any? = null, // any extra data that would help differentiate variants
 ) {
     fun matchedBy(ops: List<OpKind>, suffix: String): Boolean {
         if (suffix != "" && suffix != this.suffix?.suffix)
@@ -273,48 +274,48 @@ val JA = Instruction("ja", JMP_VARIANTS) { _, _, factory ->
     @Suppress("UnstableApiUsage")
     factory.text(">")
 }
-val JAE = Instruction("jae", JMP_VARIANTS){ _, _, factory ->
+val JAE = Instruction("jae", JMP_VARIANTS) { _, _, factory ->
     @Suppress("UnstableApiUsage")
     factory.text(">=")
 }
-val JB = Instruction("jb", JMP_VARIANTS){ _, _, factory ->
+val JB = Instruction("jb", JMP_VARIANTS) { _, _, factory ->
     @Suppress("UnstableApiUsage")
     factory.text("<")
 }
-val JBE = Instruction("jbe", JMP_VARIANTS){ _, _, factory ->
+val JBE = Instruction("jbe", JMP_VARIANTS) { _, _, factory ->
     @Suppress("UnstableApiUsage")
     factory.text("<=")
 }
-val JE = Instruction("je", JMP_VARIANTS){ _, _, factory ->
+val JE = Instruction("je", JMP_VARIANTS) { _, _, factory ->
     @Suppress("UnstableApiUsage")
     factory.text("==")
 }
-val JG = Instruction("jg", JMP_VARIANTS){ _, _, factory ->
+val JG = Instruction("jg", JMP_VARIANTS) { _, _, factory ->
     @Suppress("UnstableApiUsage")
     factory.text(">")
 }
-val JGE = Instruction("jge", JMP_VARIANTS){ _, _, factory ->
+val JGE = Instruction("jge", JMP_VARIANTS) { _, _, factory ->
     @Suppress("UnstableApiUsage")
     factory.text(">=")
 }
-val JL = Instruction("jl", JMP_VARIANTS){ _, _, factory ->
+val JL = Instruction("jl", JMP_VARIANTS) { _, _, factory ->
     @Suppress("UnstableApiUsage")
     factory.text("<")
 }
-val JLE = Instruction("jle", JMP_VARIANTS){ _, _, factory ->
+val JLE = Instruction("jle", JMP_VARIANTS) { _, _, factory ->
     @Suppress("UnstableApiUsage")
     factory.text("<=")
 }
 val JMP = Instruction("jmp", JMP_VARIANTS)
-val JNA = Instruction("jna", JMP_VARIANTS){ _, _, factory ->
+val JNA = Instruction("jna", JMP_VARIANTS) { _, _, factory ->
     @Suppress("UnstableApiUsage")
     factory.text("<= [not >]")
 }
-val JNAE = Instruction("jnae", JMP_VARIANTS){ _, _, factory ->
+val JNAE = Instruction("jnae", JMP_VARIANTS) { _, _, factory ->
     @Suppress("UnstableApiUsage")
     factory.text("< [not >=]")
 }
-val JNB = Instruction("jnb", JMP_VARIANTS){ _, _, factory ->
+val JNB = Instruction("jnb", JMP_VARIANTS) { _, _, factory ->
     @Suppress("UnstableApiUsage")
     factory.text(">= [not <]")
 }
@@ -322,19 +323,19 @@ val JNBE = Instruction("jnbe", JMP_VARIANTS) { _, _, factory ->
     @Suppress("UnstableApiUsage")
     factory.text("> [not <=]")
 }
-val JNE = Instruction("jne", JMP_VARIANTS){ _, _, factory ->
+val JNE = Instruction("jne", JMP_VARIANTS) { _, _, factory ->
     @Suppress("UnstableApiUsage")
     factory.text("!=")
 }
-val JNG = Instruction("jng", JMP_VARIANTS){ _, _, factory ->
+val JNG = Instruction("jng", JMP_VARIANTS) { _, _, factory ->
     @Suppress("UnstableApiUsage")
     factory.text("<= [not >]")
 }
-val JNGE = Instruction("jnge", JMP_VARIANTS){ _, _, factory ->
+val JNGE = Instruction("jnge", JMP_VARIANTS) { _, _, factory ->
     @Suppress("UnstableApiUsage")
     factory.text("< [not >=]")
 }
-val JNL = Instruction("jnl", JMP_VARIANTS){ _, _, factory ->
+val JNL = Instruction("jnl", JMP_VARIANTS) { _, _, factory ->
     @Suppress("UnstableApiUsage")
     factory.text(">= [not <]")
 }
@@ -342,11 +343,11 @@ val JNLE = Instruction("jnle", JMP_VARIANTS) { _, _, factory ->
     @Suppress("UnstableApiUsage")
     factory.text("> [not <=]")
 }
-val JNZ = Instruction("jnz", JMP_VARIANTS){ _, _, factory ->
+val JNZ = Instruction("jnz", JMP_VARIANTS) { _, _, factory ->
     @Suppress("UnstableApiUsage")
     factory.text("!= 0")
 }
-val JZ = Instruction("jz", JMP_VARIANTS){ _, _, factory ->
+val JZ = Instruction("jz", JMP_VARIANTS) { _, _, factory ->
     @Suppress("UnstableApiUsage")
     factory.text("== 0")
 }
@@ -533,6 +534,86 @@ val MOVZX = Instruction(
     )
 }
 
+val MUL = Instruction(
+    "mul",
+    variants(
+        // 8 bit
+        InstructionVariant(
+            Reg(Reg8),
+            suffix = Suffix("b"),
+            data = 8,
+        ),
+        InstructionVariant(
+            Mem,
+            suffix = Suffix("b", mandatory = true),
+            data = 8,
+        ),
+
+        // 16 bit
+        InstructionVariant(
+            Reg(Reg16),
+            suffix = Suffix("w"),
+            data = 16,
+        ),
+        InstructionVariant(
+            Mem,
+            suffix = Suffix("w", mandatory = true),
+            data = 16,
+        ),
+
+        // 32 bit
+        InstructionVariant(
+            Reg(Reg32),
+            suffix = Suffix("l"),
+            data = 32,
+        ),
+        InstructionVariant(
+            Mem,
+            suffix = Suffix("l", mandatory = true),
+            data = 32,
+        ),
+
+        // 64 bit
+        InstructionVariant(
+            Reg(Reg64),
+            suffix = Suffix("q"),
+            data = 64,
+        ),
+        InstructionVariant(
+            Mem,
+            suffix = Suffix("q", mandatory = true),
+            data = 64,
+        ),
+    ),
+) {
+    instruction, variant, factory ->
+
+    val (arg) = instruction.instructionArgList.instructionArgList
+
+    val bits = variant!!.data as Int
+
+    @Suppress("UnstableApiUsage")
+    when (bits) {
+        8 -> factory.factory.seq(
+            factory.text("%ax = %al * "),
+            factory.presentInstructionArg(arg),
+        )
+        16 -> factory.factory.seq(
+            factory.text("%dx:%ax = %ax * "),
+            factory.presentInstructionArg(arg),
+        )
+        32 -> factory.factory.seq(
+            factory.text("%edx:%eax = %eax * "),
+            factory.presentInstructionArg(arg),
+        )
+        64 -> factory.factory.seq(
+            factory.text("%rdx:%rax = %rax * "),
+            factory.presentInstructionArg(arg),
+        )
+        else -> error("Unknown size for mul")
+    }
+}
+
 val POP = Instruction(
     "pop",
     variants(
@@ -638,6 +719,7 @@ val INSTRUCTIONS = setOf(
     LEA,
     MOV,
     MOVZX,
+    MUL,
     POP,
     POPF,
     PUSH,
