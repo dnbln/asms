@@ -44,6 +44,8 @@
         <lang.findUsagesProvider language="Assembly" implementationClass="dev.dnbln.asms.lang.psi.AsmFindUsagesProvider"/>
         -->
 
+        <completion.contributor language="Assembly" implementationClass="dev.dnbln.asms.lang.AsmCompletionContributor"/>
+
         <codeInsight.inlayProvider language="Assembly" implementationClass="dev.dnbln.asms.lang.codeInsight.inlay.AsmInlayProvider"/>
 
         <psi.declarationProvider implementation="dev.dnbln.asms.lang.psi.AsmDeclarationProvider"/>
