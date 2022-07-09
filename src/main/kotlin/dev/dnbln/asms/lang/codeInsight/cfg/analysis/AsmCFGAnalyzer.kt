@@ -22,10 +22,10 @@ internal sealed class CfqElement {
     class Instruction(val instruction: AsmInstruction, val node: AsmCFGNodeId): CfqElement()
 }
 
-class AsmCFGAnalysisInternal {
+internal class AsmCFGAnalysisInternal {
     val codeLiveness: IdentityHashMap<AsmInstruction, Boolean> = IdentityHashMap()
     val labelLiveness: IdentityHashMap<AsmLabel, Boolean> = IdentityHashMap()
-    internal val codeFlowQueue: ArrayDeque<CfqElement> = ArrayDeque()
+    val codeFlowQueue: ArrayDeque<CfqElement> = ArrayDeque()
 
     fun addNodeToCFQ(node: AsmCFGNode, nodeId: AsmCFGNodeId) {
         when (node) {
