@@ -1,10 +1,13 @@
 package dev.dnbln.asms.lang.codeInsight
 
 import com.intellij.codeInsight.hints.presentation.InlayPresentation
+import com.intellij.psi.PsiElement
 import dev.dnbln.asms.lang.codeInsight.OpKind.*
 import dev.dnbln.asms.lang.codeInsight.RegisterKind.*
+import dev.dnbln.asms.lang.codeInsight.cfg.*
 import dev.dnbln.asms.lang.codeInsight.inlay.AsmInlayPresentationFactory
 import dev.dnbln.asms.lang.psi.AsmInstruction
+import dev.dnbln.asms.lang.psi.label
 
 sealed class OpKind {
     class Reg(val kind: RegisterKind) : OpKind() {
@@ -48,11 +51,9 @@ data class InstructionVariant(
     val data: Any? = null, // any extra data that would help differentiate variants
 ) {
     fun matchedBy(ops: List<OpKind>, suffix: String): Boolean {
-        if (suffix != "" && suffix != this.suffix?.suffix)
-            return false
+        if (suffix != "" && suffix != this.suffix?.suffix) return false
 
-        if (this.suffix?.mandatory == true && suffix == "")
-            return false
+        if (this.suffix?.mandatory == true && suffix == "") return false
 
         if (ops.size != listOfNotNull(op1, op2, op3).size) return false
 
@@ -89,179 +90,153 @@ data class Instruction(
     val variants: InstructionVariants? = null,
     val memSafeAlways: Boolean = false,
     val present: ((instruction: AsmInstruction, variant: InstructionVariant?, factory: AsmInlayPresentationFactory) -> InlayPresentation?)? = null,
+    val buildCFG: ((instruction: AsmInstruction, variant: InstructionVariant?, cfg: AsmCFG, names: Map<String, PsiElement>) -> Unit)? = null,
 )
 
 
 val ARITHMETIC_INSTRUCTION_VARIANTS = variants(
     // 8 bit
     InstructionVariant(
-        Imm, Reg(Reg8),
-        suffix = Suffix("b")
+        Imm, Reg(Reg8), suffix = Suffix("b")
     ),
     InstructionVariant(
-        Reg(Reg8), Reg(Reg8),
-        suffix = Suffix("b")
+        Reg(Reg8), Reg(Reg8), suffix = Suffix("b")
     ),
     InstructionVariant(
-        Imm, Mem,
-        suffix = Suffix("b", mandatory = true)
+        Imm, Mem, suffix = Suffix("b", mandatory = true)
     ),
     InstructionVariant(
-        Reg(Reg8), Mem,
-        suffix = Suffix("b")
+        Reg(Reg8), Mem, suffix = Suffix("b")
     ),
     InstructionVariant(
-        Mem, Reg(Reg8),
-        suffix = Suffix("b")
+        Mem, Reg(Reg8), suffix = Suffix("b")
     ),
 
     // 16 bit
     InstructionVariant(
-        Imm, Reg(Reg16),
-        suffix = Suffix("w")
+        Imm, Reg(Reg16), suffix = Suffix("w")
     ),
     InstructionVariant(
-        Reg(Reg16), Reg(Reg16),
-        suffix = Suffix("w")
+        Reg(Reg16), Reg(Reg16), suffix = Suffix("w")
     ),
     InstructionVariant(
-        Imm, Mem,
-        suffix = Suffix("w", mandatory = true)
+        Imm, Mem, suffix = Suffix("w", mandatory = true)
     ),
     InstructionVariant(
-        Reg(Reg16), Mem,
-        suffix = Suffix("w")
+        Reg(Reg16), Mem, suffix = Suffix("w")
     ),
     InstructionVariant(
-        Mem, Reg(Reg16),
-        suffix = Suffix("w")
+        Mem, Reg(Reg16), suffix = Suffix("w")
     ),
 
     // 32 bit
     InstructionVariant(
-        Imm, Reg(Reg32),
-        suffix = Suffix("l")
+        Imm, Reg(Reg32), suffix = Suffix("l")
     ),
     InstructionVariant(
-        Reg(Reg32), Reg(Reg32),
-        suffix = Suffix("l")
+        Reg(Reg32), Reg(Reg32), suffix = Suffix("l")
     ),
     InstructionVariant(
-        Imm, Mem,
-        suffix = Suffix("l", mandatory = true)
+        Imm, Mem, suffix = Suffix("l", mandatory = true)
     ),
     InstructionVariant(
-        Reg(Reg32), Mem,
-        suffix = Suffix("l")
+        Reg(Reg32), Mem, suffix = Suffix("l")
     ),
     InstructionVariant(
-        Mem, Reg(Reg32),
-        suffix = Suffix("l")
+        Mem, Reg(Reg32), suffix = Suffix("l")
     ),
 
     // 64 bit
     InstructionVariant(
-        Imm, Reg(Reg64),
-        suffix = Suffix("q")
+        Imm, Reg(Reg64), suffix = Suffix("q")
     ),
     InstructionVariant(
-        Reg(Reg64), Reg(Reg64),
-        suffix = Suffix("q")
+        Reg(Reg64), Reg(Reg64), suffix = Suffix("q")
     ),
     InstructionVariant(
-        Imm, Mem,
-        suffix = Suffix("q", mandatory = true)
+        Imm, Mem, suffix = Suffix("q", mandatory = true)
     ),
     InstructionVariant(
-        Reg(Reg64), Mem,
-        suffix = Suffix("q")
+        Reg(Reg64), Mem, suffix = Suffix("q")
     ),
     InstructionVariant(
-        Mem, Reg(Reg64),
-        suffix = Suffix("q")
+        Mem, Reg(Reg64), suffix = Suffix("q")
     ),
 )
 
-val ADD = Instruction("add", ARITHMETIC_INSTRUCTION_VARIANTS) { instruction, _, factory ->
+val ADD = Instruction("add", ARITHMETIC_INSTRUCTION_VARIANTS, present = { instruction, _, factory ->
     val (left, right) = instruction.instructionArgList.instructionArgList
 
-    @Suppress("UnstableApiUsage")
-    factory.factory.seq(
-        factory.presentInstructionArg(right),
-        factory.text(" += "),
-        factory.presentInstructionArg(left)
+    @Suppress("UnstableApiUsage") factory.factory.seq(
+        factory.presentInstructionArg(right), factory.text(" += "), factory.presentInstructionArg(left)
     )
-}
-val AND = Instruction("and", ARITHMETIC_INSTRUCTION_VARIANTS) { instruction, _, factory ->
+})
+val AND = Instruction("and", ARITHMETIC_INSTRUCTION_VARIANTS, present = { instruction, _, factory ->
     val (left, right) = instruction.instructionArgList.instructionArgList
 
-    @Suppress("UnstableApiUsage")
-    factory.factory.seq(
-        factory.presentInstructionArg(right),
-        factory.text(" &= "),
-        factory.presentInstructionArg(left)
+    @Suppress("UnstableApiUsage") factory.factory.seq(
+        factory.presentInstructionArg(right), factory.text(" &= "), factory.presentInstructionArg(left)
     )
-}
+})
 
-val CALL = Instruction(
-    "call",
-    variants(
-        InstructionVariant(
-            Mem,
-            suffix = Suffix("q")
-        )
+val CALL = Instruction("call", variants(
+    InstructionVariant(
+        Mem, suffix = Suffix("q")
     )
-) { instruction, _, factory ->
+), present = { instruction, _, factory ->
     val (call) = instruction.instructionArgList.instructionArgList
 
-    @Suppress("UnstableApiUsage")
-    factory.factory.seq(
+    @Suppress("UnstableApiUsage") factory.factory.seq(
         factory.presentInstructionArg(call),
         factory.text(" ()"),
     )
-}
+}, buildCFG = { instruction, _, cfg, _ ->
+    val label = instruction.instructionArgList.instructionArgList[0].mem?.label ?: return@Instruction
 
-val CMP = Instruction(
-    "cmp",
-    variants(
-        // 8 bit
-        InstructionVariant(Imm, Reg(Reg8), suffix = Suffix("b")),
-        InstructionVariant(Imm, Mem, suffix = Suffix("b", mandatory = true)),
-        InstructionVariant(Reg(Reg8), Reg(Reg8), suffix = Suffix("b")),
-        InstructionVariant(Reg(Reg8), Mem, suffix = Suffix("b")),
-        InstructionVariant(Mem, Reg(Reg8), suffix = Suffix("b")),
+    val callInstr = cfg.add(AsmCFGNode.AsmCFGCallNode(instruction, label))
 
-        // 16 bit
-        InstructionVariant(Imm, Reg(Reg16), suffix = Suffix("w")),
-        InstructionVariant(Imm, Mem, suffix = Suffix("w", mandatory = true)),
-        InstructionVariant(Reg(Reg16), Reg(Reg16), suffix = Suffix("w")),
-        InstructionVariant(Reg(Reg16), Mem, suffix = Suffix("w")),
-        InstructionVariant(Mem, Reg(Reg16), suffix = Suffix("w")),
+    if (label.reference?.resolve() == null) return@Instruction
 
-        // 32 bit
-        InstructionVariant(Imm, Reg(Reg32), suffix = Suffix("l")),
-        InstructionVariant(Imm, Mem, suffix = Suffix("l", mandatory = true)),
-        InstructionVariant(Reg(Reg32), Reg(Reg32), suffix = Suffix("l")),
-        InstructionVariant(Reg(Reg32), Mem, suffix = Suffix("l")),
-        InstructionVariant(Mem, Reg(Reg32), suffix = Suffix("l")),
+    val target = cfg.lookupLabel(label) ?: return@Instruction
 
-        // 64 bit
-        InstructionVariant(Imm, Reg(Reg64), suffix = Suffix("q")),
-        InstructionVariant(Imm, Mem, suffix = Suffix("q", mandatory = true)),
-        InstructionVariant(Reg(Reg64), Reg(Reg64), suffix = Suffix("q")),
-        InstructionVariant(Reg(Reg64), Mem, suffix = Suffix("q")),
-        InstructionVariant(Mem, Reg(Reg64), suffix = Suffix("q")),
-    )
-) { instruction, _, factory ->
+    cfg.addArc(AsmCFGArc(callInstr, target, AsmCFGArcKind.Call))
+})
+
+val CMP = Instruction("cmp", variants(
+    // 8 bit
+    InstructionVariant(Imm, Reg(Reg8), suffix = Suffix("b")),
+    InstructionVariant(Imm, Mem, suffix = Suffix("b", mandatory = true)),
+    InstructionVariant(Reg(Reg8), Reg(Reg8), suffix = Suffix("b")),
+    InstructionVariant(Reg(Reg8), Mem, suffix = Suffix("b")),
+    InstructionVariant(Mem, Reg(Reg8), suffix = Suffix("b")),
+
+    // 16 bit
+    InstructionVariant(Imm, Reg(Reg16), suffix = Suffix("w")),
+    InstructionVariant(Imm, Mem, suffix = Suffix("w", mandatory = true)),
+    InstructionVariant(Reg(Reg16), Reg(Reg16), suffix = Suffix("w")),
+    InstructionVariant(Reg(Reg16), Mem, suffix = Suffix("w")),
+    InstructionVariant(Mem, Reg(Reg16), suffix = Suffix("w")),
+
+    // 32 bit
+    InstructionVariant(Imm, Reg(Reg32), suffix = Suffix("l")),
+    InstructionVariant(Imm, Mem, suffix = Suffix("l", mandatory = true)),
+    InstructionVariant(Reg(Reg32), Reg(Reg32), suffix = Suffix("l")),
+    InstructionVariant(Reg(Reg32), Mem, suffix = Suffix("l")),
+    InstructionVariant(Mem, Reg(Reg32), suffix = Suffix("l")),
+
+    // 64 bit
+    InstructionVariant(Imm, Reg(Reg64), suffix = Suffix("q")),
+    InstructionVariant(Imm, Mem, suffix = Suffix("q", mandatory = true)),
+    InstructionVariant(Reg(Reg64), Reg(Reg64), suffix = Suffix("q")),
+    InstructionVariant(Reg(Reg64), Mem, suffix = Suffix("q")),
+    InstructionVariant(Mem, Reg(Reg64), suffix = Suffix("q")),
+), present = { instruction, _, factory ->
     val (left, right) = instruction.instructionArgList.instructionArgList
 
-    @Suppress("UnstableApiUsage")
-    factory.factory.seq(
-        factory.presentInstructionArg(right),
-        factory.text(" cmp "),
-        factory.presentInstructionArg(left)
+    @Suppress("UnstableApiUsage") factory.factory.seq(
+        factory.presentInstructionArg(right), factory.text(" cmp "), factory.presentInstructionArg(left)
     )
-}
+})
 
 val JMP_VARIANTS = variants(
     InstructionVariant(Mem, suffix = Suffix("q")),
@@ -270,269 +245,322 @@ val JMP_VARIANTS = variants(
     InstructionVariant(Indirection, suffix = Suffix("l")),
 )
 
-val JA = Instruction("ja", JMP_VARIANTS) { _, _, factory ->
-    @Suppress("UnstableApiUsage")
-    factory.text(">")
-}
-val JAE = Instruction("jae", JMP_VARIANTS) { _, _, factory ->
-    @Suppress("UnstableApiUsage")
-    factory.text(">=")
-}
-val JB = Instruction("jb", JMP_VARIANTS) { _, _, factory ->
-    @Suppress("UnstableApiUsage")
-    factory.text("<")
-}
-val JBE = Instruction("jbe", JMP_VARIANTS) { _, _, factory ->
-    @Suppress("UnstableApiUsage")
-    factory.text("<=")
-}
-val JE = Instruction("je", JMP_VARIANTS) { _, _, factory ->
-    @Suppress("UnstableApiUsage")
-    factory.text("==")
-}
-val JG = Instruction("jg", JMP_VARIANTS) { _, _, factory ->
-    @Suppress("UnstableApiUsage")
-    factory.text(">")
-}
-val JGE = Instruction("jge", JMP_VARIANTS) { _, _, factory ->
-    @Suppress("UnstableApiUsage")
-    factory.text(">=")
-}
-val JL = Instruction("jl", JMP_VARIANTS) { _, _, factory ->
-    @Suppress("UnstableApiUsage")
-    factory.text("<")
-}
-val JLE = Instruction("jle", JMP_VARIANTS) { _, _, factory ->
-    @Suppress("UnstableApiUsage")
-    factory.text("<=")
-}
-val JMP = Instruction("jmp", JMP_VARIANTS)
-val JNA = Instruction("jna", JMP_VARIANTS) { _, _, factory ->
-    @Suppress("UnstableApiUsage")
-    factory.text("<= [not >]")
-}
-val JNAE = Instruction("jnae", JMP_VARIANTS) { _, _, factory ->
-    @Suppress("UnstableApiUsage")
-    factory.text("< [not >=]")
-}
-val JNB = Instruction("jnb", JMP_VARIANTS) { _, _, factory ->
-    @Suppress("UnstableApiUsage")
-    factory.text(">= [not <]")
-}
-val JNBE = Instruction("jnbe", JMP_VARIANTS) { _, _, factory ->
-    @Suppress("UnstableApiUsage")
-    factory.text("> [not <=]")
-}
-val JNE = Instruction("jne", JMP_VARIANTS) { _, _, factory ->
-    @Suppress("UnstableApiUsage")
-    factory.text("!=")
-}
-val JNG = Instruction("jng", JMP_VARIANTS) { _, _, factory ->
-    @Suppress("UnstableApiUsage")
-    factory.text("<= [not >]")
-}
-val JNGE = Instruction("jnge", JMP_VARIANTS) { _, _, factory ->
-    @Suppress("UnstableApiUsage")
-    factory.text("< [not >=]")
-}
-val JNL = Instruction("jnl", JMP_VARIANTS) { _, _, factory ->
-    @Suppress("UnstableApiUsage")
-    factory.text(">= [not <]")
-}
-val JNLE = Instruction("jnle", JMP_VARIANTS) { _, _, factory ->
-    @Suppress("UnstableApiUsage")
-    factory.text("> [not <=]")
-}
-val JNZ = Instruction("jnz", JMP_VARIANTS) { _, _, factory ->
-    @Suppress("UnstableApiUsage")
-    factory.text("!= 0")
-}
-val JZ = Instruction("jz", JMP_VARIANTS) { _, _, factory ->
-    @Suppress("UnstableApiUsage")
-    factory.text("== 0")
-}
+val JA = Instruction("ja", JMP_VARIANTS, present = { _, _, factory ->
+    @Suppress("UnstableApiUsage") factory.text(">")
+}, buildCFG = { instruction, _, cfg, _ ->
+    val labelRef = instruction.instructionArgList.instructionArgList[0].mem?.label ?: return@Instruction
 
-val LEA = Instruction(
-    "lea",
-    variants(
-        InstructionVariant(
-            Mem, Reg(Reg32),
-            suffix = Suffix("l")
-        ),
-        InstructionVariant(
-            Mem, Reg(Reg64),
-            suffix = Suffix("q")
-        ),
+    val jmpInstr = cfg.add(AsmCFGNode.AsmCFGConditionalJumpNode(instruction, labelRef))
+    val targetLabel = cfg.lookupLabel(labelRef) ?: return@Instruction
+
+    cfg.addArc(AsmCFGArc(jmpInstr, targetLabel, AsmCFGArcKind.ConditionalJmp(AsmCondition.Above)))
+})
+val JAE = Instruction("jae", JMP_VARIANTS, present = { _, _, factory ->
+    @Suppress("UnstableApiUsage") factory.text(">=")
+}, buildCFG = { instruction, _, cfg, _ ->
+    val labelRef = instruction.instructionArgList.instructionArgList[0].mem?.label ?: return@Instruction
+
+    val jmpInstr = cfg.add(AsmCFGNode.AsmCFGConditionalJumpNode(instruction, labelRef))
+    val targetLabel = cfg.lookupLabel(labelRef) ?: return@Instruction
+
+    cfg.addArc(AsmCFGArc(jmpInstr, targetLabel, AsmCFGArcKind.ConditionalJmp(AsmCondition.AboveEqual)))
+})
+val JB = Instruction("jb", JMP_VARIANTS, present = { _, _, factory ->
+    @Suppress("UnstableApiUsage") factory.text("<")
+}, buildCFG = { instruction, _, cfg, _ ->
+    val labelRef = instruction.instructionArgList.instructionArgList[0].mem?.label ?: return@Instruction
+
+    val jmpInstr = cfg.add(AsmCFGNode.AsmCFGConditionalJumpNode(instruction, labelRef))
+    val targetLabel = cfg.lookupLabel(labelRef) ?: return@Instruction
+
+    cfg.addArc(AsmCFGArc(jmpInstr, targetLabel, AsmCFGArcKind.ConditionalJmp(AsmCondition.Below)))
+})
+val JBE = Instruction("jbe", JMP_VARIANTS, present = { _, _, factory ->
+    @Suppress("UnstableApiUsage") factory.text("<=")
+}, buildCFG = { instruction, _, cfg, _ ->
+    val labelRef = instruction.instructionArgList.instructionArgList[0].mem?.label ?: return@Instruction
+
+    val jmpInstr = cfg.add(AsmCFGNode.AsmCFGConditionalJumpNode(instruction, labelRef))
+    val targetLabel = cfg.lookupLabel(labelRef) ?: return@Instruction
+
+    cfg.addArc(AsmCFGArc(jmpInstr, targetLabel, AsmCFGArcKind.ConditionalJmp(AsmCondition.BelowEqual)))
+})
+val JE = Instruction("je", JMP_VARIANTS, present = { _, _, factory ->
+    @Suppress("UnstableApiUsage") factory.text("==")
+}, buildCFG = { instruction, _, cfg, _ ->
+    val labelRef = instruction.instructionArgList.instructionArgList[0].mem?.label ?: return@Instruction
+
+    val jmpInstr = cfg.add(AsmCFGNode.AsmCFGConditionalJumpNode(instruction, labelRef))
+    val targetLabel = cfg.lookupLabel(labelRef) ?: return@Instruction
+
+    cfg.addArc(AsmCFGArc(jmpInstr, targetLabel, AsmCFGArcKind.ConditionalJmp(AsmCondition.Equal)))
+})
+val JG = Instruction("jg", JMP_VARIANTS, present = { _, _, factory ->
+    @Suppress("UnstableApiUsage") factory.text(">")
+}, buildCFG = { instruction, _, cfg, _ ->
+    val labelRef = instruction.instructionArgList.instructionArgList[0].mem?.label ?: return@Instruction
+
+    val jmpInstr = cfg.add(AsmCFGNode.AsmCFGConditionalJumpNode(instruction, labelRef))
+    val targetLabel = cfg.lookupLabel(labelRef) ?: return@Instruction
+
+    cfg.addArc(AsmCFGArc(jmpInstr, targetLabel, AsmCFGArcKind.ConditionalJmp(AsmCondition.Greater)))
+})
+val JGE = Instruction("jge", JMP_VARIANTS, present = { _, _, factory ->
+    @Suppress("UnstableApiUsage") factory.text(">=")
+}, buildCFG = { instruction, _, cfg, _ ->
+    val labelRef = instruction.instructionArgList.instructionArgList[0].mem?.label ?: return@Instruction
+
+    val jmpInstr = cfg.add(AsmCFGNode.AsmCFGConditionalJumpNode(instruction, labelRef))
+    val targetLabel = cfg.lookupLabel(labelRef) ?: return@Instruction
+
+    cfg.addArc(AsmCFGArc(jmpInstr, targetLabel, AsmCFGArcKind.ConditionalJmp(AsmCondition.GreaterEqual)))
+})
+val JL = Instruction("jl", JMP_VARIANTS, present = { _, _, factory ->
+    @Suppress("UnstableApiUsage") factory.text("<")
+}, buildCFG = { instruction, _, cfg, _ ->
+    val labelRef = instruction.instructionArgList.instructionArgList[0].mem?.label ?: return@Instruction
+
+    val jmpInstr = cfg.add(AsmCFGNode.AsmCFGConditionalJumpNode(instruction, labelRef))
+    val targetLabel = cfg.lookupLabel(labelRef) ?: return@Instruction
+
+    cfg.addArc(AsmCFGArc(jmpInstr, targetLabel, AsmCFGArcKind.ConditionalJmp(AsmCondition.Less)))
+})
+val JLE = Instruction("jle", JMP_VARIANTS, present = { _, _, factory ->
+    @Suppress("UnstableApiUsage") factory.text("<=")
+}, buildCFG = { instruction, _, cfg, _ ->
+    val labelRef = instruction.instructionArgList.instructionArgList[0].mem?.label ?: return@Instruction
+
+    val jmpInstr = cfg.add(AsmCFGNode.AsmCFGConditionalJumpNode(instruction, labelRef))
+    val targetLabel = cfg.lookupLabel(labelRef) ?: return@Instruction
+
+    cfg.addArc(AsmCFGArc(jmpInstr, targetLabel, AsmCFGArcKind.ConditionalJmp(AsmCondition.LessEqual)))
+})
+val JMP = Instruction("jmp", JMP_VARIANTS, buildCFG = { instruction, _, cfg, _ ->
+    val labelRef = instruction.instructionArgList.instructionArgList[0].mem?.label ?: return@Instruction
+
+    val jmpInstr = cfg.add(AsmCFGNode.AsmCFGUnconditionalJumpNode(instruction, labelRef))
+    val targetLabel = cfg.lookupLabel(labelRef) ?: return@Instruction
+
+    cfg.addArc(AsmCFGArc(jmpInstr, targetLabel, AsmCFGArcKind.UnconditionalJmp))
+})
+val JNA = Instruction("jna", JMP_VARIANTS, present = { _, _, factory ->
+    @Suppress("UnstableApiUsage") factory.text("<= [not >]")
+}, buildCFG = { instruction, _, cfg, _ ->
+    val labelRef = instruction.instructionArgList.instructionArgList[0].mem?.label ?: return@Instruction
+
+    val jmpInstr = cfg.add(AsmCFGNode.AsmCFGConditionalJumpNode(instruction, labelRef))
+    val targetLabel = cfg.lookupLabel(labelRef) ?: return@Instruction
+
+    cfg.addArc(AsmCFGArc(jmpInstr, targetLabel, AsmCFGArcKind.ConditionalJmp(AsmCondition.NotAbove)))
+})
+val JNAE = Instruction("jnae", JMP_VARIANTS, present = { _, _, factory ->
+    @Suppress("UnstableApiUsage") factory.text("< [not >=]")
+}, buildCFG = { instruction, _, cfg, _ ->
+    val labelRef = instruction.instructionArgList.instructionArgList[0].mem?.label ?: return@Instruction
+
+    val jmpInstr = cfg.add(AsmCFGNode.AsmCFGConditionalJumpNode(instruction, labelRef))
+    val targetLabel = cfg.lookupLabel(labelRef) ?: return@Instruction
+
+    cfg.addArc(AsmCFGArc(jmpInstr, targetLabel, AsmCFGArcKind.ConditionalJmp(AsmCondition.NotAboveEqual)))
+})
+val JNB = Instruction("jnb", JMP_VARIANTS, present = { _, _, factory ->
+    @Suppress("UnstableApiUsage") factory.text(">= [not <]")
+}, buildCFG = { instruction, _, cfg, _ ->
+    val labelRef = instruction.instructionArgList.instructionArgList[0].mem?.label ?: return@Instruction
+
+    val jmpInstr = cfg.add(AsmCFGNode.AsmCFGConditionalJumpNode(instruction, labelRef))
+    val targetLabel = cfg.lookupLabel(labelRef) ?: return@Instruction
+
+    cfg.addArc(AsmCFGArc(jmpInstr, targetLabel, AsmCFGArcKind.ConditionalJmp(AsmCondition.NotBelow)))
+})
+val JNBE = Instruction("jnbe", JMP_VARIANTS, present = { _, _, factory ->
+    @Suppress("UnstableApiUsage") factory.text("> [not <=]")
+}, buildCFG = { instruction, _, cfg, _ ->
+    val labelRef = instruction.instructionArgList.instructionArgList[0].mem?.label ?: return@Instruction
+
+    val jmpInstr = cfg.add(AsmCFGNode.AsmCFGConditionalJumpNode(instruction, labelRef))
+    val targetLabel = cfg.lookupLabel(labelRef) ?: return@Instruction
+
+    cfg.addArc(AsmCFGArc(jmpInstr, targetLabel, AsmCFGArcKind.ConditionalJmp(AsmCondition.NotBelowEqual)))
+})
+val JNE = Instruction("jne", JMP_VARIANTS, present = { _, _, factory ->
+    @Suppress("UnstableApiUsage") factory.text("!=")
+}, buildCFG = { instruction, _, cfg, _ ->
+    val labelRef = instruction.instructionArgList.instructionArgList[0].mem?.label ?: return@Instruction
+
+    val jmpInstr = cfg.add(AsmCFGNode.AsmCFGConditionalJumpNode(instruction, labelRef))
+    val targetLabel = cfg.lookupLabel(labelRef) ?: return@Instruction
+
+    cfg.addArc(AsmCFGArc(jmpInstr, targetLabel, AsmCFGArcKind.ConditionalJmp(AsmCondition.NotEqual)))
+})
+val JNG = Instruction("jng", JMP_VARIANTS, present = { _, _, factory ->
+    @Suppress("UnstableApiUsage") factory.text("<= [not >]")
+}, buildCFG = { instruction, _, cfg, _ ->
+    val labelRef = instruction.instructionArgList.instructionArgList[0].mem?.label ?: return@Instruction
+
+    val jmpInstr = cfg.add(AsmCFGNode.AsmCFGConditionalJumpNode(instruction, labelRef))
+    val targetLabel = cfg.lookupLabel(labelRef) ?: return@Instruction
+
+    cfg.addArc(AsmCFGArc(jmpInstr, targetLabel, AsmCFGArcKind.ConditionalJmp(AsmCondition.NotGreater)))
+})
+val JNGE = Instruction("jnge", JMP_VARIANTS, present = { _, _, factory ->
+    @Suppress("UnstableApiUsage") factory.text("< [not >=]")
+}, buildCFG = { instruction, _, cfg, _ ->
+    val labelRef = instruction.instructionArgList.instructionArgList[0].mem?.label ?: return@Instruction
+
+    val jmpInstr = cfg.add(AsmCFGNode.AsmCFGConditionalJumpNode(instruction, labelRef))
+    val targetLabel = cfg.lookupLabel(labelRef) ?: return@Instruction
+
+    cfg.addArc(AsmCFGArc(jmpInstr, targetLabel, AsmCFGArcKind.ConditionalJmp(AsmCondition.NotGreaterEqual)))
+})
+val JNL = Instruction("jnl", JMP_VARIANTS, present = { _, _, factory ->
+    @Suppress("UnstableApiUsage") factory.text(">= [not <]")
+}, buildCFG = { instruction, _, cfg, _ ->
+    val labelRef = instruction.instructionArgList.instructionArgList[0].mem?.label ?: return@Instruction
+
+    val jmpInstr = cfg.add(AsmCFGNode.AsmCFGConditionalJumpNode(instruction, labelRef))
+    val targetLabel = cfg.lookupLabel(labelRef) ?: return@Instruction
+
+    cfg.addArc(AsmCFGArc(jmpInstr, targetLabel, AsmCFGArcKind.ConditionalJmp(AsmCondition.NotLess)))
+})
+val JNLE = Instruction("jnle", JMP_VARIANTS, present = { _, _, factory ->
+    @Suppress("UnstableApiUsage") factory.text("> [not <=]")
+}, buildCFG = { instruction, _, cfg, _ ->
+    val labelRef = instruction.instructionArgList.instructionArgList[0].mem?.label ?: return@Instruction
+
+    val jmpInstr = cfg.add(AsmCFGNode.AsmCFGConditionalJumpNode(instruction, labelRef))
+    val targetLabel = cfg.lookupLabel(labelRef) ?: return@Instruction
+
+    cfg.addArc(AsmCFGArc(jmpInstr, targetLabel, AsmCFGArcKind.ConditionalJmp(AsmCondition.NotLessEqual)))
+})
+val JNZ = Instruction("jnz", JMP_VARIANTS, present = { _, _, factory ->
+    @Suppress("UnstableApiUsage") factory.text("!= 0")
+}, buildCFG = { instruction, _, cfg, _ ->
+    val labelRef = instruction.instructionArgList.instructionArgList[0].mem?.label ?: return@Instruction
+
+    val jmpInstr = cfg.add(AsmCFGNode.AsmCFGConditionalJumpNode(instruction, labelRef))
+    val targetLabel = cfg.lookupLabel(labelRef) ?: return@Instruction
+
+    cfg.addArc(AsmCFGArc(jmpInstr, targetLabel, AsmCFGArcKind.ConditionalJmp(AsmCondition.NotZero)))
+})
+val JZ = Instruction("jz", JMP_VARIANTS, present = { _, _, factory ->
+    @Suppress("UnstableApiUsage") factory.text("== 0")
+}, buildCFG = { instruction, _, cfg, _ ->
+    val labelRef = instruction.instructionArgList.instructionArgList[0].mem?.label ?: return@Instruction
+
+    val jmpInstr = cfg.add(AsmCFGNode.AsmCFGConditionalJumpNode(instruction, labelRef))
+    val targetLabel = cfg.lookupLabel(labelRef) ?: return@Instruction
+
+    cfg.addArc(AsmCFGArc(jmpInstr, targetLabel, AsmCFGArcKind.ConditionalJmp(AsmCondition.Zero)))
+})
+
+val LEA = Instruction("lea", variants(
+    InstructionVariant(
+        Mem, Reg(Reg32), suffix = Suffix("l")
     ),
-    memSafeAlways = true
-) { instruction, _, factory ->
+    InstructionVariant(
+        Mem, Reg(Reg64), suffix = Suffix("q")
+    ),
+), memSafeAlways = true, present = { instruction, _, factory ->
     val (left, right) = instruction.instructionArgList.instructionArgList
 
-    @Suppress("UnstableApiUsage")
-    factory.factory.seq(
-        factory.presentInstructionArg(right),
-        factory.text(" = &"),
-        factory.presentInstructionArg(left)
+    @Suppress("UnstableApiUsage") factory.factory.seq(
+        factory.presentInstructionArg(right), factory.text(" = &"), factory.presentInstructionArg(left)
     )
-}
+})
 
-val MOV = Instruction(
-    "mov",
-    variants(
-        // 8 bit move
-        InstructionVariant(
-            Imm, Reg(Reg8),
-            suffix = Suffix("b")
-        ),
-        InstructionVariant(
-            Imm, Mem,
-            suffix = Suffix("b", mandatory = true)
-        ),
-        InstructionVariant(
-            Reg(Reg8), Reg(Reg8),
-            suffix = Suffix("b")
-        ),
-        InstructionVariant(
-            Reg(Reg8), Mem,
-            suffix = Suffix("b")
-        ),
-        InstructionVariant(
-            Mem, Reg(Reg8),
-            suffix = Suffix("b")
-        ),
+val MOV = Instruction("mov", variants(
+    // 8 bit move
+    InstructionVariant(
+        Imm, Reg(Reg8), suffix = Suffix("b")
+    ), InstructionVariant(
+        Imm, Mem, suffix = Suffix("b", mandatory = true)
+    ), InstructionVariant(
+        Reg(Reg8), Reg(Reg8), suffix = Suffix("b")
+    ), InstructionVariant(
+        Reg(Reg8), Mem, suffix = Suffix("b")
+    ), InstructionVariant(
+        Mem, Reg(Reg8), suffix = Suffix("b")
+    ),
 
-        // 16 bit move
-        InstructionVariant(
-            Imm, Reg(Reg16),
-            suffix = Suffix("w")
-        ),
-        InstructionVariant(
-            Imm, Mem,
-            suffix = Suffix("w", mandatory = true)
-        ),
-        InstructionVariant(
-            Reg(Reg16), Reg(Reg16),
-            suffix = Suffix("w")
-        ),
-        InstructionVariant(
-            Reg(Reg16), Mem,
-            suffix = Suffix("w")
-        ),
-        InstructionVariant(
-            Mem, Reg(Reg16),
-            suffix = Suffix("w")
-        ),
+    // 16 bit move
+    InstructionVariant(
+        Imm, Reg(Reg16), suffix = Suffix("w")
+    ), InstructionVariant(
+        Imm, Mem, suffix = Suffix("w", mandatory = true)
+    ), InstructionVariant(
+        Reg(Reg16), Reg(Reg16), suffix = Suffix("w")
+    ), InstructionVariant(
+        Reg(Reg16), Mem, suffix = Suffix("w")
+    ), InstructionVariant(
+        Mem, Reg(Reg16), suffix = Suffix("w")
+    ),
 
-        // 32 bit move
-        InstructionVariant(
-            Imm, Reg(Reg32),
-            suffix = Suffix("l")
-        ),
-        InstructionVariant(
-            Imm, Mem,
-            suffix = Suffix("l", mandatory = true)
-        ),
-        InstructionVariant(
-            Reg(Reg32), Reg(Reg32),
-            suffix = Suffix("l")
-        ),
-        InstructionVariant(
-            Reg(Reg32), Mem,
-            suffix = Suffix("l")
-        ),
-        InstructionVariant(
-            Mem, Reg(Reg32),
-            suffix = Suffix("l")
-        ),
+    // 32 bit move
+    InstructionVariant(
+        Imm, Reg(Reg32), suffix = Suffix("l")
+    ), InstructionVariant(
+        Imm, Mem, suffix = Suffix("l", mandatory = true)
+    ), InstructionVariant(
+        Reg(Reg32), Reg(Reg32), suffix = Suffix("l")
+    ), InstructionVariant(
+        Reg(Reg32), Mem, suffix = Suffix("l")
+    ), InstructionVariant(
+        Mem, Reg(Reg32), suffix = Suffix("l")
+    ),
 
-        // 64 bit move
-        InstructionVariant(
-            Imm, Reg(Reg64),
-            suffix = Suffix("q")
-        ),
-        InstructionVariant(
-            Imm, Mem,
-            suffix = Suffix("q", mandatory = true)
-        ),
-        InstructionVariant(
-            Reg(Reg64), Reg(Reg64),
-            suffix = Suffix("q")
-        ),
-        InstructionVariant(
-            Reg(Reg64), Mem,
-            suffix = Suffix("q")
-        ),
-        InstructionVariant(
-            Mem, Reg(Reg64),
-            suffix = Suffix("q")
-        )
+    // 64 bit move
+    InstructionVariant(
+        Imm, Reg(Reg64), suffix = Suffix("q")
+    ), InstructionVariant(
+        Imm, Mem, suffix = Suffix("q", mandatory = true)
+    ), InstructionVariant(
+        Reg(Reg64), Reg(Reg64), suffix = Suffix("q")
+    ), InstructionVariant(
+        Reg(Reg64), Mem, suffix = Suffix("q")
+    ), InstructionVariant(
+        Mem, Reg(Reg64), suffix = Suffix("q")
     )
-) { instruction, _, factory ->
+), present = { instruction, _, factory ->
     val (left, right) = instruction.instructionArgList.instructionArgList
 
-    @Suppress("UnstableApiUsage")
-    factory.factory.seq(
-        factory.presentInstructionArg(right),
-        factory.text(" = "),
-        factory.presentInstructionArg(left)
+    @Suppress("UnstableApiUsage") factory.factory.seq(
+        factory.presentInstructionArg(right), factory.text(" = "), factory.presentInstructionArg(left)
     )
-}
+})
 
-val MOVZX = Instruction(
-    "movzx",
-    variants(
-        InstructionVariant(
-            Reg(Reg8), Reg(Reg16),
-            suffix = Suffix("b")
-        ),
-        InstructionVariant(
-            Mem, Reg(Reg16),
-            suffix = Suffix("b", mandatory = true)
-        ),
-        InstructionVariant(
-            Reg(Reg8), Reg(Reg32),
-            suffix = Suffix("b")
-        ),
-        InstructionVariant(
-            Mem, Reg(Reg32),
-            suffix = Suffix("b")
-        ),
-        InstructionVariant(
-            Reg(Reg8), Reg(Reg64),
-            suffix = Suffix("b")
-        ),
-        InstructionVariant(
-            Mem, Reg(Reg64),
-            suffix = Suffix("b", mandatory = true)
-        ),
-        InstructionVariant(
-            Reg(Reg16), Reg(Reg32),
-            suffix = Suffix("w")
-        ),
-        InstructionVariant(
-            Mem, Reg(Reg32),
-            suffix = Suffix("w", mandatory = true)
-        ),
-        InstructionVariant(
-            Reg(Reg16), Reg(Reg64),
-            suffix = Suffix("w")
-        ),
-        InstructionVariant(
-            Mem, Reg(Reg64),
-            suffix = Suffix("w", mandatory = true)
-        )
+val MOVZX = Instruction("movzx", variants(
+    InstructionVariant(
+        Reg(Reg8), Reg(Reg16), suffix = Suffix("b")
+    ), InstructionVariant(
+        Mem, Reg(Reg16), suffix = Suffix("b", mandatory = true)
+    ), InstructionVariant(
+        Reg(Reg8), Reg(Reg32), suffix = Suffix("b")
+    ), InstructionVariant(
+        Mem, Reg(Reg32), suffix = Suffix("b")
+    ), InstructionVariant(
+        Reg(Reg8), Reg(Reg64), suffix = Suffix("b")
+    ), InstructionVariant(
+        Mem, Reg(Reg64), suffix = Suffix("b", mandatory = true)
+    ), InstructionVariant(
+        Reg(Reg16), Reg(Reg32), suffix = Suffix("w")
+    ), InstructionVariant(
+        Mem, Reg(Reg32), suffix = Suffix("w", mandatory = true)
+    ), InstructionVariant(
+        Reg(Reg16), Reg(Reg64), suffix = Suffix("w")
+    ), InstructionVariant(
+        Mem, Reg(Reg64), suffix = Suffix("w", mandatory = true)
     )
-) { instruction, _, factory ->
+), present = { instruction, _, factory ->
     val (left, right) = instruction.instructionArgList.instructionArgList
 
-    @Suppress("UnstableApiUsage")
-    factory.factory.seq(
+    @Suppress("UnstableApiUsage") factory.factory.seq(
         factory.presentInstructionArg(right),
         factory.text(" = ZX("),
         factory.presentInstructionArg(left),
         factory.text(")")
     )
-}
+})
 
 val MUL = Instruction(
     "mul",
@@ -585,52 +613,45 @@ val MUL = Instruction(
             data = 64,
         ),
     ),
-) {
-    instruction, variant, factory ->
+    present = { instruction, variant, factory ->
 
-    val (arg) = instruction.instructionArgList.instructionArgList
+        val (arg) = instruction.instructionArgList.instructionArgList
 
-    val bits = variant!!.data as Int
+        val bits = variant!!.data as Int
 
-    @Suppress("UnstableApiUsage")
-    when (bits) {
-        8 -> factory.factory.seq(
-            factory.text("%ax = %al * "),
-            factory.presentInstructionArg(arg),
-        )
-        16 -> factory.factory.seq(
-            factory.text("%dx:%ax = %ax * "),
-            factory.presentInstructionArg(arg),
-        )
-        32 -> factory.factory.seq(
-            factory.text("%edx:%eax = %eax * "),
-            factory.presentInstructionArg(arg),
-        )
-        64 -> factory.factory.seq(
-            factory.text("%rdx:%rax = %rax * "),
-            factory.presentInstructionArg(arg),
-        )
-        else -> error("Unknown size for mul")
-    }
-}
+        @Suppress("UnstableApiUsage") when (bits) {
+            8 -> factory.factory.seq(
+                factory.text("%ax = %al * "),
+                factory.presentInstructionArg(arg),
+            )
+            16 -> factory.factory.seq(
+                factory.text("%dx:%ax = %ax * "),
+                factory.presentInstructionArg(arg),
+            )
+            32 -> factory.factory.seq(
+                factory.text("%edx:%eax = %eax * "),
+                factory.presentInstructionArg(arg),
+            )
+            64 -> factory.factory.seq(
+                factory.text("%rdx:%rax = %rax * "),
+                factory.presentInstructionArg(arg),
+            )
+            else -> error("Unknown size for mul")
+        }
+    },
+)
 
 val POP = Instruction(
-    "pop",
-    variants(
-        InstructionVariant(suffix = Suffix("q")),
-        InstructionVariant(
-            Reg(Reg64),
-            suffix = Suffix("q")
-        ),
-        InstructionVariant(
-            Mem,
-            suffix = Suffix("q", mandatory = true)
+    "pop", variants(
+        InstructionVariant(suffix = Suffix("q")), InstructionVariant(
+            Reg(Reg64), suffix = Suffix("q")
+        ), InstructionVariant(
+            Mem, suffix = Suffix("q", mandatory = true)
         )
     )
 )
 val POPF = Instruction(
-    "popf",
-    variants(
+    "popf", variants(
         InstructionVariant(suffix = Suffix("q"))
     )
 )
@@ -638,57 +659,49 @@ val PUSH = Instruction(
     "push",
     variants(
         InstructionVariant(
-            Imm,
-            suffix = Suffix("q")
-        ),
-        InstructionVariant(
-            Reg(Reg64),
-            suffix = Suffix("q")
-        ),
-        InstructionVariant(
-            Mem,
-            suffix = Suffix("q", mandatory = true)
+            Imm, suffix = Suffix("q")
+        ), InstructionVariant(
+            Reg(Reg64), suffix = Suffix("q")
+        ), InstructionVariant(
+            Mem, suffix = Suffix("q", mandatory = true)
         )
     ),
 )
 val PUSHF = Instruction(
-    "pushf",
-    variants(
+    "pushf", variants(
         InstructionVariant(suffix = Suffix("q"))
     )
 )
 
-val OR = Instruction("or", ARITHMETIC_INSTRUCTION_VARIANTS) { instruction, _, factory ->
+val RET = Instruction(
+    "ret", variants(InstructionVariant(suffix = Suffix("q")), InstructionVariant(suffix = Suffix("l"))),
+    buildCFG = { instruction, _, cfg, _ ->
+        cfg.add(AsmCFGNode.AsmCFGRetNode(instruction))
+    }
+)
+
+val OR = Instruction("or", ARITHMETIC_INSTRUCTION_VARIANTS, present = { instruction, _, factory ->
     val (left, right) = instruction.instructionArgList.instructionArgList
 
-    @Suppress("UnstableApiUsage")
-    factory.factory.seq(
-        factory.presentInstructionArg(right),
-        factory.text(" |= "),
-        factory.presentInstructionArg(left)
+    @Suppress("UnstableApiUsage") factory.factory.seq(
+        factory.presentInstructionArg(right), factory.text(" |= "), factory.presentInstructionArg(left)
     )
-}
-val SUB = Instruction("sub", ARITHMETIC_INSTRUCTION_VARIANTS) { instruction, _, factory ->
+})
+val SUB = Instruction("sub", ARITHMETIC_INSTRUCTION_VARIANTS, present = { instruction, _, factory ->
     val (left, right) = instruction.instructionArgList.instructionArgList
 
-    @Suppress("UnstableApiUsage")
-    factory.factory.seq(
-        factory.presentInstructionArg(right),
-        factory.text(" -= "),
-        factory.presentInstructionArg(left)
+    @Suppress("UnstableApiUsage") factory.factory.seq(
+        factory.presentInstructionArg(right), factory.text(" -= "), factory.presentInstructionArg(left)
     )
-}
+})
 val SYSCALL = Instruction("syscall")
-val XOR = Instruction("xor", ARITHMETIC_INSTRUCTION_VARIANTS) { instruction, _, factory ->
+val XOR = Instruction("xor", ARITHMETIC_INSTRUCTION_VARIANTS, present = { instruction, _, factory ->
     val (left, right) = instruction.instructionArgList.instructionArgList
 
-    @Suppress("UnstableApiUsage")
-    factory.factory.seq(
-        factory.presentInstructionArg(right),
-        factory.text(" ^= "),
-        factory.presentInstructionArg(left)
+    @Suppress("UnstableApiUsage") factory.factory.seq(
+        factory.presentInstructionArg(right), factory.text(" ^= "), factory.presentInstructionArg(left)
     )
-}
+})
 
 val INSTRUCTIONS = setOf(
     ADD,
@@ -724,6 +737,7 @@ val INSTRUCTIONS = setOf(
     POPF,
     PUSH,
     PUSHF,
+    RET,
     OR,
     SUB,
     SYSCALL,
@@ -739,8 +753,7 @@ fun findInstruction(instr: AsmInstruction): Pair<Instruction, InstructionVariant
         else if (arg.mem != null) instrOperands.add(Mem)
         else if (arg.reg != null) {
             val reg = findReg(arg.reg!!.id.text)?.kind
-            if (reg != null)
-                instrOperands.add(Reg(reg))
+            if (reg != null) instrOperands.add(Reg(reg))
             else return null
         } else if (arg.indirection != null) {
             instrOperands.add(Indirection)
@@ -754,12 +767,11 @@ fun findInstruction(instr: AsmInstruction): Pair<Instruction, InstructionVariant
 
         val suffix = instrName.removePrefix(ins.mnemonic)
 
-        if (ins.variants != null)
-            for (variant in ins.variants.list) {
-                if (variant.matchedBy(instrOperands, suffix)) {
-                    return ins to variant
-                }
+        if (ins.variants != null) for (variant in ins.variants.list) {
+            if (variant.matchedBy(instrOperands, suffix)) {
+                return ins to variant
             }
+        }
         else {
             if (suffix == "" && instrOperands.isEmpty()) {
                 return ins to null

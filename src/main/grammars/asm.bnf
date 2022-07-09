@@ -21,7 +21,7 @@
 
 file ::= item*
 
-item ::= NEWLINE | label | directive | instruction {
+item ::= NEWLINE | label NEWLINE | directive NEWLINE | instruction NEWLINE {
     mixin = "dev.dnbln.asms.lang.psi.AsmItemMixin"
 }
 
@@ -30,11 +30,11 @@ private meta plus_minus_chain_s ::= (PLUS | MINUS)? <<param>> ((PLUS | MINUS) <<
 
 possibly_dot_id ::= DOT? ID
 
-label ::= possibly_dot_id COLON NEWLINE {
+label ::= possibly_dot_id COLON {
     implements = ["dev.dnbln.asms.lang.psi.AsmNamedElement" "com.intellij.model.Symbol"]
     mixin = "dev.dnbln.asms.lang.psi.AsmLabelMixin"
 }
-instruction ::= instruction_name instruction_arg_list NEWLINE
+instruction ::= instruction_name instruction_arg_list
 
 instruction_name ::= ID
 instruction_arg_list ::= <<comma instruction_arg>> | ()
@@ -92,7 +92,7 @@ label_ref ::= possibly_dot_id {
 // ===       Directives        ===
 // ===============================
 
-directive ::= directive_code NEWLINE {
+directive ::= directive_code {
     mixin = "dev.dnbln.asms.lang.psi.AsmDirectiveMixin"
 }
 

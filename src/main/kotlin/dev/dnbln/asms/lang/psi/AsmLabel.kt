@@ -8,8 +8,55 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.ResolveState
 import com.intellij.psi.scope.PsiScopeProcessor
 import com.intellij.refactoring.suggested.createSmartPointer
+import dev.dnbln.asms.lang.codeInsight.AsmDirectiveArgsSink
+import dev.dnbln.asms.lang.codeInsight.Directive
+import dev.dnbln.asms.lang.codeInsight.Global
+import dev.dnbln.asms.lang.codeInsight.findDirectiveAndCollectArgs
 
-abstract class AsmLabelMixin(node: ASTNode): ASTWrapperPsiElement(node),
+val AsmLabel.externallyVisible: Boolean
+    get() {
+        val file = containingFile as AsmFile
+
+        val directives = file.items.mapNotNull { it.directive }
+        val label = this
+
+        return directives.any {
+            var isGlobal = false
+
+            findDirectiveAndCollectArgs(it, object : AsmDirectiveArgsSink {
+                override fun addDeclaration(
+                    directive: Directive<out Any>,
+                    dir: AsmDirective,
+                    nameArg: AsmDirectiveArgName
+                ) {
+                }
+
+                override fun addReference(
+                    directive: Directive<out Any>,
+                    dir: AsmDirective,
+                    nameArg: AsmDirectiveArgName
+                ) {
+                    if (directive !== Global) return
+
+                    if (nameArg.name != label.name) return
+
+                    isGlobal = true
+                }
+            })
+
+            isGlobal
+        }
+    }
+
+val AsmLabel.itemsAfterLabel: Sequence<AsmItem>
+    get() {
+        val file = containingFile as AsmFile
+        val itemSequence = file.items.asSequence()
+
+        return itemSequence.dropWhile { it.label !== this }.drop(1)
+    }
+
+abstract class AsmLabelMixin(node: ASTNode) : ASTWrapperPsiElement(node),
     AsmLabel {
     override fun setName(name: String): PsiElement {
         possiblyDotId.replace(createPossiblyDotId(project, name))

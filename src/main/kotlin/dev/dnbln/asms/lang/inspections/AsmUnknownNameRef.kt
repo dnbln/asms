@@ -7,6 +7,8 @@ import dev.dnbln.asms.lang.psi.AsmLabelRef
 import dev.dnbln.asms.lang.psi.AsmVisitor
 
 class AsmUnknownNameRef : LocalInspectionTool() {
+    override fun runForWholeFile(): Boolean = true
+
     override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor =
         object : AsmVisitor() {
             override fun visitLabelRef(ref: AsmLabelRef) {

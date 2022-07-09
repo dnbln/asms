@@ -13,6 +13,9 @@ import dev.dnbln.asms.lang.AsmLang
 import dev.dnbln.asms.lang.codeInsight.AsmScopeProcessor
 
 class AsmFile(viewProvider: FileViewProvider) : PsiFileBase(viewProvider, AsmLang) {
+    val items: List<AsmItem>
+        get() = childrenOfType()
+
     companion object {
         val RESOLVE_RESULT_CACHE_KEY = Key.create<CachedValue<ResolveState>>("asm.file.cache.resolve.state")
     }
@@ -25,7 +28,7 @@ class AsmFile(viewProvider: FileViewProvider) : PsiFileBase(viewProvider, AsmLan
         lastParent: PsiElement?,
         place: PsiElement
     ): Boolean {
-        for (item in childrenOfType<AsmItem>()) {
+        for (item in items) {
             if (item === lastParent) continue
 
             if (!item.processDeclarations(processor, state, lastParent, place)) return false

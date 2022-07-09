@@ -23,11 +23,19 @@ class AsmScopeProcessor : PsiScopeProcessor {
         when (element) {
             is AsmDirective -> {
                 findDirectiveAndCollectArgs(element, object : AsmDirectiveArgsSink {
-                    override fun addDeclaration(dir: AsmDirective, nameArg: AsmDirectiveArgName) {
+                    override fun addDeclaration(
+                        directive: Directive<out Any>,
+                        dir: AsmDirective,
+                        nameArg: AsmDirectiveArgName
+                    ) {
                         m.add(nameArg.text, nameArg)
                     }
 
-                    override fun addReference(dir: AsmDirective, nameArg: AsmDirectiveArgName) {}
+                    override fun addReference(
+                        directive: Directive<out Any>,
+                        dir: AsmDirective,
+                        nameArg: AsmDirectiveArgName
+                    ) {}
                 })
             }
             is AsmLabel -> {

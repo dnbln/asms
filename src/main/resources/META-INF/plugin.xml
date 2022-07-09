@@ -60,6 +60,8 @@
         <localInspection language="Assembly" implementationClass="dev.dnbln.asms.lang.inspections.AsmUnknownNameRef"
                          displayName="Unknown name reference" groupName="Assembly" enabledByDefault="true" level="WARNING"/>
         <localInspection language="Assembly" implementationClass="dev.dnbln.asms.lang.inspections.AsmLikelySegfault"
-                         displayName="Likely to SEGFAULT" groupName="Assembly" enabledByDefault="true" level="WARNING"/>
+                         displayName="Likely to segfault" groupName="Assembly" enabledByDefault="true" level="WARNING"/>
+        <localInspection language="Assembly" implementationClass="dev.dnbln.asms.lang.inspections.AsmDeadCode"
+                         displayName="Dead code" groupName="Assembly" enabledByDefault="true" level="WARNING"/>
     </extensions>
 </idea-plugin>

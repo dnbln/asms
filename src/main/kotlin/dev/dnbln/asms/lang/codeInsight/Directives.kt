@@ -30,13 +30,13 @@ sealed class DirectiveError : RuntimeException() {
 }
 
 interface AsmDirectiveArgsSink {
-    fun addDeclaration(dir: AsmDirective, nameArg: AsmDirectiveArgName)
-    fun addReference(dir: AsmDirective, nameArg: AsmDirectiveArgName)
+    fun addDeclaration(directive: Directive<out Any>, dir: AsmDirective, nameArg: AsmDirectiveArgName)
+    fun addReference(directive: Directive<out Any>, dir: AsmDirective, nameArg: AsmDirectiveArgName)
 }
 
 @Suppress("UnstableApiUsage")
 class AsmDirectiveArgsCollector(private val symbols: MutableCollection<PsiSymbolDeclaration>) : AsmDirectiveArgsSink {
-    override fun addDeclaration(dir: AsmDirective, nameArg: AsmDirectiveArgName) {
+    override fun addDeclaration(directive: Directive<out Any>, dir: AsmDirective, nameArg: AsmDirectiveArgName) {
         symbols.add(object : PsiSymbolDeclaration {
             override fun getDeclaringElement(): PsiElement = dir
 
@@ -46,7 +46,7 @@ class AsmDirectiveArgsCollector(private val symbols: MutableCollection<PsiSymbol
         })
     }
 
-    override fun addReference(dir: AsmDirective, nameArg: AsmDirectiveArgName) {}
+    override fun addReference(directive: Directive<out Any>, dir: AsmDirective, nameArg: AsmDirectiveArgName) {}
 }
 
 sealed class Directive<DirectiveArgs> {
@@ -153,7 +153,7 @@ object Global : SimpleNamedDirective<GlobalArgs>("global", "globl") {
     }
 
     override fun collectArgs(dir: AsmDirective, args: GlobalArgs, argsSink: AsmDirectiveArgsSink) {
-        argsSink.addReference(dir, args.nameArg)
+        argsSink.addReference(this, dir, args.nameArg)
     }
 }
 
@@ -191,7 +191,7 @@ object Lcomm : SimpleNamedDirective<LcommArgs>("lcomm") {
     }
 
     override fun collectArgs(dir: AsmDirective, args: LcommArgs, argsSink: AsmDirectiveArgsSink) {
-        argsSink.addDeclaration(dir, args.nameArg)
+        argsSink.addDeclaration(this, dir, args.nameArg)
     }
 }
 
